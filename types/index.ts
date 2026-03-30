@@ -143,3 +143,9 @@ export interface ApiResponse<T> {
   error: string | null
 }
 
+export const REPORT_TYPE_ICONS: Record<ReportType, string> = {
+  oportunidades: '🎯',
+  comerciales: '👤',
+  dashboard: '📊',
+}
+
