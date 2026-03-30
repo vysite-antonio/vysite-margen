@@ -8,7 +8,7 @@ import UpdateKPIsForm from '@/components/admin/UpdateKPIsForm'
 import UpdateCycleStatus from '@/components/admin/UpdateCycleStatus'
 
 export default async function AdminClientDetail({ params }: { params: { id: string } }) {
-  const supabase = createClient()
+  const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
   const { data: roleData } = await supabase.from('user_roles').select('role').eq('user_id', user.id).single()

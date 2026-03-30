@@ -5,7 +5,7 @@ import Link from 'next/link'
 import SignOutButton from '@/components/SignOutButton'
 
 export default async function AdminDashboard() {
-  const supabase = createClient()
+  const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 

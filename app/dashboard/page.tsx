@@ -5,7 +5,7 @@ import UploadCSVButton from '@/components/client/UploadCSVButton'
 import SignOutButton from '@/components/SignOutButton'
 
 export default async function ClientDashboard() {
-  const supabase = createClient()
+  const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
