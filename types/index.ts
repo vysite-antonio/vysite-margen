@@ -2,6 +2,7 @@
 // VYSITE MARGEN — Types & Interfaces
 // ============================================================
 
+// 'comercial' está preparado en el tipo pero requiere ALTER en Supabase user_roles CHECK constraint antes de usarse (B4)
 export type UserRole = 'admin' | 'client' | 'comercial'
 
 export interface UserProfile {
@@ -11,20 +12,37 @@ export interface UserProfile {
 }
 
 export interface ClientConfig {
+  erp: string
+  encoding: string
+  decimal_separator: string
+  delivery_day_1: number
+  delivery_day_2: number
   margins: {
     Limpieza: number
-    Droguería: number
+    Drogueria: number
     Menaje: number
-    Alimentación: number
+    Alimentacion: number
     Bebidas: number
     Fresco: number
     Otros: number
     [key: string]: number
   }
+  // Mapeo columnas CSV del ERP → campos internos
+  column_mapping: {
+    fecha: string
+    cliente_codigo: string
+    cliente_nombre: string
+    categoria: string
+    comercial: string
+    cantidad: string
+    margen: string
+    importe_total: string
+    producto_codigo: string
+    producto_nombre: string
+    [key: string]: string
+  }
+  // Mapeo categorías ERP → categorías internas
   category_mapping: Record<string, string>
-  erp: string
-  delivery_day_1: number
-  delivery_day_2: number
 }
 
 export interface Client {
@@ -81,6 +99,8 @@ export interface UploadedFile {
   file_path: string
   file_size_bytes?: number
   file_type: string
+  validation_result: ValidationResult
+  is_active: boolean
   processing_status: 'pendiente' | 'procesado' | 'error'
   processing_metadata: Record<string, unknown>
   uploaded_at: string
@@ -141,6 +161,51 @@ export interface CreateClientForm {
 export interface ApiResponse<T> {
   data: T | null
   error: string | null
+}
+
+// ─── Plan tiers ────────────────────────────────────────────────────────────────
+
+export type PlanTier = 'inicio' | 'crecimiento' | 'estrategico'
+
+export const PLAN_TIER_LABELS: Record<PlanTier, string> = {
+  inicio: 'Plan Inicio',
+  crecimiento: 'Plan Crecimiento',
+  estrategico: 'Plan Estratégico',
+}
+
+// ─── Módulos de análisis (B3 FOMO) ────────────────────────────────────────────
+
+export interface AnalysisModule {
+  id: string
+  name: string
+  display_name: string
+  plan_required: PlanTier
+  prompt_template: Record<string, unknown> | null
+  config_schema: Record<string, unknown> | null
+  is_active: boolean
+  created_at: string
+}
+
+export interface ClientModuleConfig {
+  id: string
+  client_id: string
+  module_id: string
+  is_enabled: boolean
+  custom_params: Record<string, unknown> | null
+  display_order: number
+  created_at: string
+}
+
+// ─── Validación CSV (uploaded_files.validation_result) ───────────────────────
+
+export interface ValidationResult {
+  is_valid: boolean
+  warnings: string[]
+  row_count: number
+  missing_columns: string[]
+  detected_columns: string[]
+  detected_encoding: string
+  detected_separator: string
 }
 
 export const REPORT_TYPE_ICONS: Record<ReportType, string> = {

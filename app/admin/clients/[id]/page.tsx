@@ -7,14 +7,15 @@ import UploadReportButton from '@/components/admin/UploadReportButton'
 import UpdateKPIsForm from '@/components/admin/UpdateKPIsForm'
 import UpdateCycleStatus from '@/components/admin/UpdateCycleStatus'
 
-export default async function AdminClientDetail({ params }: { params: { id: string } }) {
+export default async function AdminClientDetail({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
   const { data: roleData } = await supabase.from('user_roles').select('role').eq('user_id', user.id).single()
   if (roleData?.role !== 'admin') redirect('/dashboard')
 
-  const { data: client } = await supabase.from('clients').select('*').eq('id', params.id).single()
+  const { data: client } = await supabase.from('clients').select('*').eq('id', id).single()
   if (!client) notFound()
 
   const { data: cycles } = await supabase
@@ -35,7 +36,7 @@ export default async function AdminClientDetail({ params }: { params: { id: stri
             <span className="text-slate-700">/</span>
             <span className="text-white text-sm font-medium">{client.company_name}</span>
           </div>
-          <Link href={`/admin/clients/${params.id}/config`}
+          <Link href={`/admin/clients/${id}/config`}
             className="text-slate-400 hover:text-white text-xs border border-slate-700 hover:border-slate-600 px-3 py-1.5 rounded-lg transition-colors">
             Configuracion
           </Link>
