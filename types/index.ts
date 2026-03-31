@@ -2,7 +2,7 @@
 // VYSITE MARGEN — Types & Interfaces
 // ============================================================
 
-export type UserRole = 'admin' | 'client'
+export type UserRole = 'admin' | 'client' | 'comercial'
 
 export interface UserProfile {
   id: string

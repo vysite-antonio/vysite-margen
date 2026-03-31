@@ -24,24 +24,24 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  const { data: { session } } = await supabase.auth.getSession()
+  const { data: { user } } = await supabase.auth.getUser()
   const { pathname } = request.nextUrl
   const isPublicRoute = ['/login'].includes(pathname)
 
-  if (!session && !isPublicRoute) {
+  if (!user && !isPublicRoute) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  if (session && isPublicRoute) {
+  if (user && isPublicRoute) {
     const { data: roleData } = await supabase
-      .from('user_roles').select('role').eq('user_id', session.user.id).single()
+      .from('user_roles').select('role').eq('user_id', user.id).single()
     const destination = roleData?.role === 'admin' ? '/admin' : '/dashboard'
     return NextResponse.redirect(new URL(destination, request.url))
   }
 
-  if (pathname.startsWith('/admin') && session) {
+  if (pathname.startsWith('/admin') && user) {
     const { data: roleData } = await supabase
-      .from('user_roles').select('role').eq('user_id', session.user.id).single()
+      .from('user_roles').select('role').eq('user_id', user.id).single()
     if (roleData?.role !== 'admin') {
       return NextResponse.redirect(new URL('/dashboard', request.url))
     }

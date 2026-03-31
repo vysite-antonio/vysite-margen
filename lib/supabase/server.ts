@@ -15,12 +15,16 @@ export async function createClient() {
         set(name: string, value: string, options: CookieOptions) {
           try {
             cookieStore.set({ name, value, ...options })
-          } catch {}
+          } catch (e) {
+            console.warn('[Supabase] No se pudo escribir cookie en contexto de solo lectura:', name, e)
+          }
         },
         remove(name: string, options: CookieOptions) {
           try {
             cookieStore.set({ name, value: '', ...options })
-          } catch {}
+          } catch (e) {
+            console.warn('[Supabase] No se pudo eliminar cookie en contexto de solo lectura:', name, e)
+          }
         },
       },
     }
