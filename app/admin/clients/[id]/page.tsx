@@ -38,7 +38,7 @@ export default async function AdminClientDetail({ params }: { params: Promise<{ 
           </div>
           <Link href={`/admin/clients/${id}/config`}
             className="text-slate-400 hover:text-white text-xs border border-slate-700 hover:border-slate-600 px-3 py-1.5 rounded-lg transition-colors">
-            Configuracion
+            Configuración
           </Link>
         </div>
       </header>
@@ -93,7 +93,7 @@ export default async function AdminClientDetail({ params }: { params: Promise<{ 
                 </div>
               ) : (
                 <div className="bg-slate-800/50 border border-dashed border-slate-700 rounded-lg p-4 text-center">
-                  <p className="text-slate-500 text-sm">Cliente aun no ha subido CSV</p>
+                  <p className="text-slate-500 text-sm">El cliente aún no ha subido CSV</p>
                 </div>
               )}
             </div>
@@ -123,7 +123,7 @@ export default async function AdminClientDetail({ params }: { params: Promise<{ 
             </div>
 
             <div>
-              <h3 className="text-slate-400 text-xs font-medium uppercase tracking-wide mb-3">KPIs del analisis</h3>
+              <h3 className="text-slate-400 text-xs font-medium uppercase tracking-wide mb-3">KPIs del análisis</h3>
               <UpdateKPIsForm cycleId={latestCycle.id} clientId={client.id} existingKpis={kpis}/>
             </div>
           </div>

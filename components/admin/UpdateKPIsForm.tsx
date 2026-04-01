@@ -63,28 +63,28 @@ export default function UpdateKPIsForm({ cycleId, clientId, existingKpis }: Prop
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         {numField('Oportunidades detectadas', 'total_oportunidades')}
         {numField('Potencial mensual (EUR)', 'potencial_mensual')}
-        {numField('Facturacion total (EUR)', 'facturacion_total')}
+        {numField('Facturación total (EUR)', 'facturacion_total')}
         {numField('Margen total (EUR)', 'margen_total')}
         {numField('Clientes activos', 'clientes_activos')}
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-slate-400 text-xs mb-1.5">Top categoria (margen)</label>
+          <label className="block text-slate-400 text-xs mb-1.5">Top categoría (margen)</label>
           <input type="text" value={form.top_categoria} onChange={e => setForm(p => ({...p, top_categoria: e.target.value}))}
             placeholder="ej: Limpieza" className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white text-sm focus:outline-none focus:border-emerald-500"/>
         </div>
         <div>
-          <label className="block text-slate-400 text-xs mb-1.5">Categoria mayor potencial</label>
+          <label className="block text-slate-400 text-xs mb-1.5">Categoría mayor potencial</label>
           <input type="text" value={form.categoria_mayor_potencial} onChange={e => setForm(p => ({...p, categoria_mayor_potencial: e.target.value}))}
-            placeholder="ej: Drogueria" className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white text-sm focus:outline-none focus:border-emerald-500"/>
+            placeholder="ej: Droguería" className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white text-sm focus:outline-none focus:border-emerald-500"/>
         </div>
       </div>
       <div>
         <p className="text-slate-400 text-xs mb-3">Desglose por tipo de oportunidad</p>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {numField('Categoria perdida', 'cat_perdida')}
-          {numField('Mix suboptimo', 'mix_suboptimo')}
-          {numField('Cliente en caida', 'cliente_caida')}
+          {numField('Categoría perdida', 'cat_perdida')}
+          {numField('Mix subóptimo', 'mix_suboptimo')}
+          {numField('Cliente en caída', 'cliente_caida')}
           {numField('Producto no ofrecido', 'producto_no_ofrecido')}
         </div>
       </div>

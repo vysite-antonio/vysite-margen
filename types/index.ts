@@ -43,6 +43,8 @@ export interface ClientConfig {
   }
   // Mapeo categorías ERP → categorías internas
   category_mapping: Record<string, string>
+  // Mapeo nombres ERP de comerciales → nombres a mostrar en el dashboard
+  comercial_display_names?: Record<string, string>
 }
 
 export interface Client {
@@ -125,6 +127,38 @@ export interface Report {
   uploaded_at: string
 }
 
+// ─── KPIs extended data (stored in kpis.extended_data JSONB) ─────────────────
+
+export type OportunidadTipo = 'categoria_perdida' | 'mix_suboptimo' | 'cliente_caida' | 'producto_no_ofrecido'
+
+export interface KPIsExtendedData {
+  margen_por_categoria?: Array<{
+    categoria: string
+    margen_pct: number
+    facturacion: number
+  }>
+  oportunidades_detalle?: Array<{
+    cliente_codigo: string
+    cliente_nombre: string
+    tipo: OportunidadTipo
+    potencial_mes: number
+  }>
+  comerciales?: Array<{
+    nombre_erp: string
+    n_clientes: number
+    facturacion: number
+    margen_pct: number
+    potencial_mes: number
+  }>
+  riesgo?: Array<{
+    cliente_codigo: string
+    cliente_nombre: string
+    severidad: 'CRITICO' | 'ATENCION' | 'SEGUIMIENTO'
+    caida_pct: number
+    impacto_mes: number
+  }>
+}
+
 export interface KPIs {
   id: string
   cycle_id: string
@@ -144,7 +178,7 @@ export interface KPIs {
     cliente_caida: number
     producto_no_ofrecido: number
   }
-  extended_data: Record<string, unknown>
+  extended_data: KPIsExtendedData
   source: 'manual' | 'automatico'
   created_at: string
   updated_at: string
