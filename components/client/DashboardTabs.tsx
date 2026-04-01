@@ -15,6 +15,10 @@ import type {
 import { CYCLE_STATUS_LABELS, CYCLE_STATUS_COLORS, REPORT_TYPE_LABELS, REPORT_TYPE_ICONS } from '@/types'
 import UploadCSVButton from '@/components/client/UploadCSVButton'
 import SignOutButton from '@/components/SignOutButton'
+import OportunidadesDonut from '@/components/client/charts/OportunidadesDonut'
+import TendenciaChart from '@/components/client/charts/TendenciaChart'
+import MargenChart from '@/components/client/charts/MargenChart'
+import ComercialesChart from '@/components/client/charts/ComercialesChart'
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -331,6 +335,7 @@ function TabResumen({
     )
   }
 
+  const ext = kpis.extended_data as KPIsExtendedData | undefined
   const potencialMensual = kpis.potencial_mensual ?? 0
   const potencialAnual = kpis.potencial_anual ?? 0
   const totalOportunidades = kpis.total_oportunidades ?? 0
@@ -340,41 +345,90 @@ function TabResumen({
   const topCategoria = kpis.top_categoria
   const categoriaMayorPotencial = kpis.categoria_mayor_potencial
   const oport = kpis.oportunidades_por_tipo
+  const isFacturas = ext?.pipeline === 'facturas'
 
   return (
     <div className="space-y-5">
 
-      {/* Hero */}
-      <div className="bg-gradient-to-br from-emerald-950 via-slate-900 to-slate-900 border border-emerald-900/40 rounded-2xl p-6">
-        <p className="text-emerald-400 text-xs font-semibold uppercase tracking-widest mb-2">Potencial recuperable</p>
-        <div className="flex items-end gap-3 mb-1.5">
-          <span className="text-5xl font-bold text-white tabular-nums leading-none">
-            {potencialMensual.toLocaleString('es-ES')}
-          </span>
-          <span className="text-emerald-400 text-lg font-semibold mb-0.5">EUR/mes</span>
-        </div>
-        <p className="text-slate-400 text-sm">
-          Proyección anual:{' '}
-          <span className="text-white font-semibold">{potencialAnual.toLocaleString('es-ES')} EUR</span>
-        </p>
-        {categoriaMayorPotencial && (
-          <p className="text-slate-500 text-xs mt-1.5">
-            Mayor oportunidad en: <span className="text-emerald-400">{categoriaMayorPotencial}</span>
+      {/* Hero — diferente según pipeline */}
+      {isFacturas ? (
+        <div className="bg-gradient-to-br from-blue-950 via-slate-900 to-slate-900 border border-blue-900/40 rounded-2xl p-6">
+          <p className="text-blue-400 text-xs font-semibold uppercase tracking-widest mb-2">Facturación del período</p>
+          <div className="flex items-end gap-3 mb-1.5">
+            <span className="text-5xl font-bold text-white tabular-nums leading-none">
+              {(facturacion / 1000).toFixed(0)}K
+            </span>
+            <span className="text-blue-400 text-lg font-semibold mb-0.5">EUR</span>
+          </div>
+          <p className="text-slate-400 text-sm">
+            {clientesActivos} clientes activos en el período analizado
           </p>
-        )}
-      </div>
+          {ext?.resumen_cobro && ext.resumen_cobro.total_pendiente > 0 && (
+            <p className="text-amber-400 text-xs mt-1.5">
+              ⚠️ {ext.resumen_cobro.total_pendiente.toLocaleString('es-ES')} € pendientes de cobro
+            </p>
+          )}
+        </div>
+      ) : (
+        <div className="bg-gradient-to-br from-emerald-950 via-slate-900 to-slate-900 border border-emerald-900/40 rounded-2xl p-6">
+          <p className="text-emerald-400 text-xs font-semibold uppercase tracking-widest mb-2">Potencial recuperable</p>
+          <div className="flex items-end gap-3 mb-1.5">
+            <span className="text-5xl font-bold text-white tabular-nums leading-none">
+              {potencialMensual.toLocaleString('es-ES')}
+            </span>
+            <span className="text-emerald-400 text-lg font-semibold mb-0.5">EUR/mes</span>
+          </div>
+          <p className="text-slate-400 text-sm">
+            Proyección anual:{' '}
+            <span className="text-white font-semibold">{potencialAnual.toLocaleString('es-ES')} EUR</span>
+          </p>
+          {categoriaMayorPotencial && (
+            <p className="text-slate-500 text-xs mt-1.5">
+              Mayor oportunidad en: <span className="text-emerald-400">{categoriaMayorPotencial}</span>
+            </p>
+          )}
+        </div>
+      )}
 
       {/* KPI grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <KPICard label="Oportunidades" value={totalOportunidades.toString()} sublabel="acciones identificadas" color="blue" />
-        <KPICard label="Facturación" value={`${(facturacion / 1000).toFixed(0)}K €`} sublabel="periodo analizado" color="amber" />
-        <KPICard label="Margen actual" value={`${margenPct.toFixed(1)}%`} sublabel="sobre facturación" color="slate" />
-        <KPICard label="Clientes activos" value={clientesActivos.toString()} sublabel={topCategoria ? `top: ${topCategoria}` : 'en cartera'} color="slate" />
+        {isFacturas ? (
+          <>
+            <KPICard label="Clientes" value={clientesActivos.toString()} sublabel="en el período" color="blue" />
+            <KPICard label="Facturación" value={`${(facturacion / 1000).toFixed(0)}K €`} sublabel="total emitido" color="amber" />
+            <KPICard label="Tasa cobro" value={`${ext?.resumen_cobro?.tasa_cobro_pct ?? 100}%`} sublabel="importe cobrado" color={((ext?.resumen_cobro?.tasa_cobro_pct) ?? 100) >= 90 ? 'emerald' : 'amber'} />
+            <KPICard label="Facturas" value={(ext?.resumen_cobro?.n_facturas ?? 0).toString()} sublabel="emitidas" color="slate" />
+          </>
+        ) : (
+          <>
+            <KPICard label="Oportunidades" value={totalOportunidades.toString()} sublabel="acciones identificadas" color="blue" />
+            <KPICard label="Facturación" value={`${(facturacion / 1000).toFixed(0)}K €`} sublabel="periodo analizado" color="amber" />
+            <KPICard label="Margen actual" value={`${margenPct.toFixed(1)}%`} sublabel="sobre facturación" color="slate" />
+            <KPICard label="Clientes activos" value={clientesActivos.toString()} sublabel={topCategoria ? `top: ${topCategoria}` : 'en cartera'} color="slate" />
+          </>
+        )}
       </div>
 
-      {/* Oportunidades por tipo */}
-      {oport && (
-        <OportunidadesBars oport={oport} potencialTotal={potencialMensual} />
+      {/* Para pipeline facturas: resumen de cobro + tendencia mensual */}
+      {ext?.pipeline === 'facturas' && (
+        <>
+          {ext.resumen_cobro && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <KPICard label="Total facturado" value={`${((ext.resumen_cobro.total_facturado) / 1000).toFixed(0)}K €`} sublabel="período analizado" color="blue" />
+              <KPICard label="Cobrado" value={`${((ext.resumen_cobro.total_cobrado) / 1000).toFixed(0)}K €`} sublabel={`tasa ${ext.resumen_cobro.tasa_cobro_pct}%`} color="emerald" />
+              <KPICard label="Pendiente" value={`${((ext.resumen_cobro.total_pendiente) / 1000).toFixed(0)}K €`} sublabel="por cobrar" color={ext.resumen_cobro.total_pendiente > 0 ? 'amber' : 'slate'} />
+              <KPICard label="Facturas" value={ext.resumen_cobro.n_facturas.toString()} sublabel="en el período" color="slate" />
+            </div>
+          )}
+          {ext.tendencia_mensual && ext.tendencia_mensual.length > 1 && (
+            <TendenciaChart data={ext.tendencia_mensual} label="Evolución de facturación mensual" />
+          )}
+        </>
+      )}
+
+      {/* Para pipeline ventas: donut de oportunidades */}
+      {ext?.pipeline !== 'facturas' && oport && (
+        <OportunidadesDonut oport={oport} potencialTotal={potencialMensual} />
       )}
     </div>
   )
@@ -396,32 +450,13 @@ function TabMargen({ kpis }: { kpis: KPIs | null }) {
   }
 
   const sorted = [...data].sort((a, b) => b.margen_pct - a.margen_pct)
-  const maxMargen = Math.max(...sorted.map(d => d.margen_pct), 1)
   const totalFact = sorted.reduce((acc, d) => acc + d.facturacion, 0)
 
   return (
     <div className="space-y-5">
 
-      {/* Gráfico barras horizontal */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-        <h2 className="text-white font-semibold text-sm mb-5">Margen por categoría</h2>
-        <div className="space-y-4">
-          {sorted.map(row => (
-            <div key={row.categoria}>
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-slate-300 text-sm">{row.categoria}</span>
-                <span className="text-white text-sm font-semibold tabular-nums">{row.margen_pct.toFixed(1)}%</span>
-              </div>
-              <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-emerald-500 rounded-full transition-all"
-                  style={{ width: `${(row.margen_pct / maxMargen) * 100}%` }}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+      {/* Gráfico de barras con Recharts */}
+      <MargenChart data={sorted} />
 
       {/* Tabla */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
@@ -609,6 +644,7 @@ function TabComerciales({ kpis, config }: { kpis: KPIs | null; config: ClientCon
   const ext = kpis?.extended_data as KPIsExtendedData | undefined
   const comerciales = ext?.comerciales ?? []
   const displayNames = config?.comercial_display_names ?? {}
+  const pipeline = ext?.pipeline
 
   if (!comerciales.length) {
     return (
@@ -621,41 +657,18 @@ function TabComerciales({ kpis, config }: { kpis: KPIs | null; config: ClientCon
   }
 
   const sorted = [...comerciales].sort((a, b) => b.potencial_mes - a.potencial_mes)
-  const maxPotencial = Math.max(...sorted.map(c => c.potencial_mes), 1)
 
   return (
     <div className="space-y-5">
 
-      {/* Gráfico horizontal potencial */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-        <h2 className="text-white font-semibold text-sm mb-5">Potencial por comercial</h2>
-        <div className="space-y-4">
-          {sorted.map(com => {
-            const displayName = displayNames[com.nombre_erp] ?? com.nombre_erp
-            return (
-              <div key={com.nombre_erp}>
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-slate-300 text-sm">{displayName}</span>
-                  <span className="text-white text-sm font-semibold tabular-nums">
-                    {com.potencial_mes.toLocaleString('es-ES')} €/mes
-                  </span>
-                </div>
-                <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-blue-500 rounded-full"
-                    style={{ width: `${(com.potencial_mes / maxPotencial) * 100}%` }}
-                  />
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      </div>
+      {/* Gráfico con Recharts */}
+      <ComercialesChart comerciales={sorted} displayNames={displayNames} pipeline={pipeline} />
 
-      {/* Cards detalle */}
+      {/* Cards detalle — para pipeline facturas mostrar tasa cobro en lugar de margen */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {sorted.map(com => {
           const displayName = displayNames[com.nombre_erp] ?? com.nombre_erp
+          const isFacturas = pipeline === 'facturas'
           return (
             <div key={com.nombre_erp} className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
               <div className="flex items-start justify-between mb-4">
@@ -671,10 +684,21 @@ function TabComerciales({ kpis, config }: { kpis: KPIs | null; config: ClientCon
                   )}
                 </div>
                 <div className="text-right">
-                  <p className="text-blue-400 text-lg font-bold tabular-nums">
-                    {com.potencial_mes.toLocaleString('es-ES')} €
-                  </p>
-                  <p className="text-slate-600 text-xs">potencial/mes</p>
+                  {isFacturas ? (
+                    <>
+                      <p className="text-blue-400 text-lg font-bold tabular-nums">
+                        {(com.facturacion / 1000).toFixed(0)}K €
+                      </p>
+                      <p className="text-slate-600 text-xs">facturación</p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-blue-400 text-lg font-bold tabular-nums">
+                        {com.potencial_mes.toLocaleString('es-ES')} €
+                      </p>
+                      <p className="text-slate-600 text-xs">potencial/mes</p>
+                    </>
+                  )}
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-3 pt-3 border-t border-slate-800">
@@ -689,10 +713,22 @@ function TabComerciales({ kpis, config }: { kpis: KPIs | null; config: ClientCon
                   </p>
                 </div>
                 <div>
-                  <p className="text-slate-500 text-xs">Margen</p>
-                  <p className={`text-sm font-semibold tabular-nums ${
-                    com.margen_pct >= 25 ? 'text-emerald-400' : com.margen_pct >= 15 ? 'text-amber-400' : 'text-red-400'
-                  }`}>{com.margen_pct.toFixed(1)}%</p>
+                  {isFacturas ? (
+                    <>
+                      <p className="text-slate-500 text-xs">Cobro</p>
+                      <p className={`text-sm font-semibold tabular-nums ${
+                        (com.tasa_cobro ?? 100) >= 90 ? 'text-emerald-400' :
+                        (com.tasa_cobro ?? 100) >= 70 ? 'text-amber-400' : 'text-red-400'
+                      }`}>{com.tasa_cobro ?? 100}%</p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-slate-500 text-xs">Margen</p>
+                      <p className={`text-sm font-semibold tabular-nums ${
+                        com.margen_pct >= 25 ? 'text-emerald-400' : com.margen_pct >= 15 ? 'text-amber-400' : 'text-red-400'
+                      }`}>{com.margen_pct.toFixed(1)}%</p>
+                    </>
+                  )}
                 </div>
               </div>
             </div>

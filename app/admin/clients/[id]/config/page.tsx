@@ -11,20 +11,23 @@ export default async function AdminClientConfig({ params }: { params: Promise<{ 
   if (!user) redirect('/login')
 
   const { data: roleData } = await supabase
-    .from('user_roles')
-    .select('role')
-    .eq('user_id', user.id)
-    .single()
+    .from('user_roles').select('role').eq('user_id', user.id).single()
   if (roleData?.role !== 'admin') redirect('/dashboard')
 
   const { data: client } = await supabase
     .from('clients')
-    .select('*')
+    .select('*, erp_profiles(id, name, slug)')
     .eq('id', id)
     .single()
   if (!client) notFound()
 
-  // Extraer nombres ERP de comerciales desde los KPIs más recientes
+  // Todos los perfiles ERP disponibles para el selector
+  const { data: erpProfiles } = await supabase
+    .from('erp_profiles')
+    .select('id, name, slug, file_types')
+    .order('name')
+
+  // Comerciales detectados en el último análisis
   const { data: kpisData } = await supabase
     .from('kpis')
     .select('extended_data')
@@ -63,10 +66,10 @@ export default async function AdminClientConfig({ params }: { params: Promise<{ 
           <p className="text-slate-400 text-sm">{client.contact_email}</p>
           <div className="flex gap-2 mt-3">
             <span className="text-xs bg-slate-800 text-slate-400 px-3 py-1 rounded-full">
-              ERP: {client.config?.erp || 'PCCOM'}
+              ERP: {(client as any).erp_profiles?.name ?? client.config?.erp ?? 'Sin asignar'}
             </span>
             <span className="text-xs bg-slate-800 text-slate-400 px-3 py-1 rounded-full">
-              Plan: {client.plan || 'inicio'}
+              Plan: {client.plan ?? 'inicio'}
             </span>
           </div>
         </div>
@@ -77,6 +80,8 @@ export default async function AdminClientConfig({ params }: { params: Promise<{ 
           config={client.config ?? {}}
           plan={client.plan ?? 'inicio'}
           erpComerciales={erpComerciales}
+          erpProfiles={erpProfiles ?? []}
+          currentErpProfileId={client.erp_profile_id ?? null}
         />
       </div>
     </div>

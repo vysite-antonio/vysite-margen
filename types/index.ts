@@ -132,6 +132,10 @@ export interface Report {
 export type OportunidadTipo = 'categoria_perdida' | 'mix_suboptimo' | 'cliente_caida' | 'producto_no_ofrecido'
 
 export interface KPIsExtendedData {
+  // Identifica el pipeline usado: 'lineas_venta' | 'facturas'
+  pipeline?: string
+
+  // ── Pipeline: líneas de venta ─────────────────────────────────────────────
   margen_por_categoria?: Array<{
     categoria: string
     margen_pct: number
@@ -149,6 +153,10 @@ export interface KPIsExtendedData {
     facturacion: number
     margen_pct: number
     potencial_mes: number
+    // campos extra del pipeline facturas (opcionales):
+    pendiente?: number
+    n_facturas?: number
+    tasa_cobro?: number
   }>
   riesgo?: Array<{
     cliente_codigo: string
@@ -156,6 +164,28 @@ export interface KPIsExtendedData {
     severidad: 'CRITICO' | 'ATENCION' | 'SEGUIMIENTO'
     caida_pct: number
     impacto_mes: number
+  }>
+
+  // ── Pipeline: facturas (cabeceras) ────────────────────────────────────────
+  resumen_cobro?: {
+    total_facturado: number
+    total_cobrado: number
+    total_pendiente: number
+    tasa_cobro_pct: number
+    n_facturas: number
+  }
+  top_clientes?: Array<{
+    cliente_codigo: string
+    cliente_nombre: string
+    comercial: string
+    facturacion: number
+    pendiente: number
+    n_facturas: number
+    tasa_cobro: number
+  }>
+  tendencia_mensual?: Array<{
+    mes: string
+    facturacion: number
   }>
 }
 

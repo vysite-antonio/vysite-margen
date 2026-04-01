@@ -49,6 +49,9 @@ export default async function AdminDashboard() {
             <span className="text-xs bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full border border-amber-500/30">Admin</span>
           </div>
           <div className="flex items-center gap-3">
+            <Link href="/admin/erp-profiles" className="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs px-4 py-2 rounded-lg transition-colors border border-slate-700">
+              🔌 Perfiles ERP
+            </Link>
             <Link href="/admin/clients/new" className="bg-emerald-500 hover:bg-emerald-400 text-white text-xs px-4 py-2 rounded-lg transition-colors">
               + Nuevo cliente
             </Link>
