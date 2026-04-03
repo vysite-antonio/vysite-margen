@@ -1,7 +1,8 @@
 'use client'
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import type { RealtimeChannel } from '@supabase/supabase-js'
 
 interface Props {
   clientId: string
@@ -14,16 +15,82 @@ const STATE_LABELS: Record<UploadState, string> = {
   idle:       'Seleccionar archivo CSV',
   uploading:  'Subiendo archivo…',
   processing: 'Analizando datos…',
-  done:       'Análisis iniciado',
+  done:       'Análisis completado',
   error:      'Error al subir',
 }
+
+// Estados del ciclo que indican que el procesado ha terminado
+const TERMINAL_STATUSES = new Set(['completado', 'error_procesado', 'error'])
 
 export default function UploadCSVButton({ clientId, cycleId }: Props) {
   const [state, setState] = useState<UploadState>('idle')
   const [error, setError] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const channelRef = useRef<RealtimeChannel | null>(null)
   const supabase = createClient()
   const router = useRouter()
+
+  // Limpia la suscripción Realtime al desmontar o al completar
+  const unsubscribe = useCallback(() => {
+    if (channelRef.current) {
+      supabase.removeChannel(channelRef.current)
+      channelRef.current = null
+    }
+  }, [supabase])
+
+  useEffect(() => {
+    return () => unsubscribe()
+  }, [unsubscribe])
+
+  // Suscribe a cambios en el ciclo via Realtime para detectar fin de procesado
+  const subscribeToRealtimeUpdates = useCallback(() => {
+    // Evitar suscripciones duplicadas
+    if (channelRef.current) unsubscribe()
+
+    const channel = supabase
+      .channel(`cycle-${cycleId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'analysis_cycles',
+          filter: `id=eq.${cycleId}`,
+        },
+        (payload) => {
+          const newStatus = (payload.new as any)?.status as string | undefined
+          if (!newStatus) return
+
+          if (TERMINAL_STATUSES.has(newStatus)) {
+            // El ciclo ha terminado (completado o con error)
+            setState(newStatus === 'completado' ? 'done' : 'error')
+            if (newStatus !== 'completado') {
+              setError('El análisis terminó con un error. El equipo ha sido notificado.')
+            }
+            router.refresh()
+            unsubscribe()
+          }
+        }
+      )
+      .subscribe((status) => {
+        if (status === 'CHANNEL_ERROR') {
+          // Realtime no disponible: fallback silencioso — el usuario puede refrescar manualmente
+          console.warn('[UploadCSVButton] Realtime no disponible, el ciclo se refrescará al recargar')
+        }
+      })
+
+    channelRef.current = channel
+
+    // Timeout de seguridad: si en 3 minutos no llega actualización, desconectar
+    setTimeout(() => {
+      if (channelRef.current) {
+        unsubscribe()
+        // Si todavía está en 'processing', hacer un refresh manual
+        setState(prev => prev === 'processing' ? 'done' : prev)
+        router.refresh()
+      }
+    }, 3 * 60 * 1000)
+  }, [cycleId, supabase, router, unsubscribe])
 
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -76,9 +143,11 @@ export default function UploadCSVButton({ clientId, cycleId }: Props) {
       details: { file_name: file.name, cycle_id: cycleId },
     })
 
-    // ── 4. Disparar procesado automático ────────────────────────────────
+    // ── 4. Suscribir a Realtime ANTES de disparar el procesado ──────────
     setState('processing')
+    subscribeToRealtimeUpdates()
 
+    // ── 5. Disparar procesado automático (fire-and-forget) ──────────────
     try {
       await fetch('/api/process-csv', {
         method: 'POST',
@@ -92,15 +161,9 @@ export default function UploadCSVButton({ clientId, cycleId }: Props) {
         }),
       })
     } catch {
-      // El procesado es best-effort; si falla el admin puede reprocesar
+      // El procesado es best-effort; Realtime detectará el cambio de estado
       console.warn('[UploadCSVButton] No se pudo disparar procesado automático')
     }
-
-    setState('done')
-
-    // Polling cada 3s para detectar cuando el ciclo pase a "completado"
-    const poll = setInterval(() => router.refresh(), 3000)
-    setTimeout(() => clearInterval(poll), 90_000)
   }
 
   const isDisabled = state !== 'idle' && state !== 'error'
@@ -133,13 +196,13 @@ export default function UploadCSVButton({ clientId, cycleId }: Props) {
       {state === 'processing' && (
         <p className="text-slate-400 text-xs mt-2 flex items-center gap-1.5">
           <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-          El análisis puede tardar 30–60 segundos. La página se actualizará automáticamente.
+          Esperando análisis… La página se actualizará en cuanto finalice.
         </p>
       )}
 
       {state === 'done' && (
         <p className="text-emerald-400 text-xs mt-2">
-          ✓ Archivo recibido · Análisis en proceso
+          ✓ Análisis completado · La página se ha actualizado
         </p>
       )}
 

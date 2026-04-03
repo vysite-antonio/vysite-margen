@@ -3,28 +3,46 @@ import { redirect } from 'next/navigation'
 import { CYCLE_STATUS_LABELS, CYCLE_STATUS_COLORS, CycleStatus } from '@/types'
 import Link from 'next/link'
 import SignOutButton from '@/components/SignOutButton'
+import { captureError } from '@/lib/monitoring'
 
 export default async function AdminDashboard() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
 
-  const { data: roleData } = await supabase
+  // Auth: fuera del try/catch para que redirect() funcione
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) redirect('/login')
+
+  const { data: roleData, error: roleError } = await supabase
     .from('user_roles').select('role').eq('user_id', user.id).single()
-  if (roleData?.role !== 'admin') redirect('/dashboard')
+  if (roleError || roleData?.role !== 'admin') redirect('/dashboard')
 
-  const { data: clients } = await supabase
-    .from('clients')
-    .select(`*, analysis_cycles(id, status, period_start, period_end, updated_at, created_at, uploaded_files(id, uploaded_at), reports(id), kpis(potencial_mensual, total_oportunidades))`)
-    .eq('is_active', true)
-    .is('deleted_at', null)
-    .order('company_name')
+  // Datos del panel: errores individuales no bloquean el render completo
+  let clients: any[] = []
+  let logs: any[] = []
+  let allCycles: any[] = []
 
-  const { data: logs } = await supabase
-    .from('system_logs').select('*').order('created_at', { ascending: false }).limit(20)
-
-  const { data: allCycles } = await supabase
-    .from('analysis_cycles').select('status, kpis(potencial_mensual)')
+  try {
+    const [clientsRes, logsRes, cyclesRes] = await Promise.all([
+      supabase
+        .from('clients')
+        .select(`*, analysis_cycles(id, status, period_start, period_end, updated_at, created_at, uploaded_files(id, uploaded_at), reports(id), kpis(potencial_mensual, total_oportunidades))`)
+        .eq('is_active', true)
+        .is('deleted_at', null)
+        .order('company_name'),
+      supabase
+        .from('system_logs').select('*').order('created_at', { ascending: false }).limit(20),
+      supabase
+        .from('analysis_cycles').select('status, kpis(potencial_mensual)'),
+    ])
+    if (clientsRes.error) console.error('[admin] clients:', clientsRes.error)
+    else clients = clientsRes.data ?? []
+    if (logsRes.error) console.error('[admin] logs:', logsRes.error)
+    else logs = logsRes.data ?? []
+    if (cyclesRes.error) console.error('[admin] allCycles:', cyclesRes.error)
+    else allCycles = cyclesRes.data ?? []
+  } catch (err) {
+    await captureError(err, { module: 'admin' })
+  }
 
   const stats = {
     total_clients: clients?.length || 0,
@@ -34,8 +52,8 @@ export default async function AdminDashboard() {
     total_potential: (allCycles as any[])?.reduce((acc, c) => acc + ((c.kpis as any[])?.[0]?.potencial_mensual || 0), 0) || 0,
   }
 
-  const logEmoji: Record<string, string> = { csv_subido:'📤', informe_subido:'📊', kpis_actualizados:'🎯', ciclo_creado:'🔄', cliente_creado:'👤', login:'🔑', logout:'🚪' }
-  const logLabel: Record<string, string> = { csv_subido:'CSV subido', informe_subido:'Informe subido', kpis_actualizados:'KPIs actualizados', ciclo_creado:'Ciclo creado', cliente_creado:'Cliente creado', ciclo_actualizado:'Ciclo actualizado', login:'Acceso al sistema', logout:'Cierre de sesión' }
+  const logEmoji: Record<string, string> = { csv_subido:'📤', informe_subido:'📊', kpis_actualizados:'🎯', ciclo_creado:'🔄', cliente_creado:'👤', login:'🔑', logout:'🚪', error_aplicacion:'🔴', error_cliente:'🟠' }
+  const logLabel: Record<string, string> = { csv_subido:'CSV subido', informe_subido:'Informe subido', kpis_actualizados:'KPIs actualizados', ciclo_creado:'Ciclo creado', cliente_creado:'Cliente creado', ciclo_actualizado:'Ciclo actualizado', login:'Acceso al sistema', logout:'Cierre de sesión', error_aplicacion:'Error de servidor', error_cliente:'Error de cliente' }
 
   return (
     <div className="min-h-screen bg-slate-950">

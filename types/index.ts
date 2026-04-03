@@ -11,12 +11,27 @@ export interface UserProfile {
   role: UserRole
 }
 
+// ─── Módulo de objetivos (Item 6) ─────────────────────────────────────────────
+
+export interface ClientGoals {
+  /** Margen objetivo global (%) — alertar si actual < este valor */
+  margen_objetivo_pct?: number
+  /** Facturación mensual objetivo (€) */
+  facturacion_objetivo_mes?: number
+  /** Potencial mínimo a perseguir cada mes (€) — alerta si cae por debajo */
+  potencial_minimo_mes?: number
+  /** Texto libre con notas o compromisos del cliente */
+  notas?: string
+}
+
 export interface ClientConfig {
   erp: string
   encoding: string
   decimal_separator: string
   delivery_day_1: number
   delivery_day_2: number
+  /** Objetivos comerciales del cliente (módulo de alertas) */
+  goals?: ClientGoals
   margins: {
     Limpieza: number
     Drogueria: number

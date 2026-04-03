@@ -19,6 +19,7 @@ import OportunidadesDonut from '@/components/client/charts/OportunidadesDonut'
 import TendenciaChart from '@/components/client/charts/TendenciaChart'
 import MargenChart from '@/components/client/charts/MargenChart'
 import ComercialesChart from '@/components/client/charts/ComercialesChart'
+import GoalsPanel from '@/components/client/GoalsPanel'
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -149,7 +150,7 @@ export default function DashboardTabs({
           <TabDrive cycle={cycle} clientId={clientId} />
         )}
         {activeTab === 'resumen' && (
-          <TabResumen kpis={kpis} cycle={cycle} />
+          <TabResumen kpis={kpis} cycle={cycle} config={config} />
         )}
         {activeTab === 'margen' && (
           isPlanUnlocked(plan, 'crecimiento')
@@ -321,18 +322,33 @@ function TabDrive({
 function TabResumen({
   kpis,
   cycle,
+  config,
 }: {
   kpis: KPIs | null
   cycle: (AnalysisCycle & { uploaded_files: UploadedFile[]; reports: Report[] }) | null
+  config: ClientConfig
 }) {
   if (!kpis) {
     return (
-      <EmptyState
-        emoji="📊"
-        title="Sin datos de análisis"
-        desc={cycle ? 'Los KPIs se mostrarán aquí cuando el análisis esté completado.' : 'No hay ciclo configurado aún.'}
-      />
+      <div className="space-y-5">
+        <EmptyState
+          emoji="📊"
+          title="Sin datos de análisis"
+          desc={cycle ? 'Los KPIs se mostrarán aquí cuando el análisis esté completado.' : 'No hay ciclo configurado aún.'}
+        />
+        <GoalsPanel goals={config?.goals} kpis={null} />
+      </div>
     )
+  }
+
+  // Alerta de desviación de objetivos
+  const goals = config?.goals
+  const goalAlerts: string[] = []
+  if (goals?.margen_objetivo_pct && kpis.margen_porcentaje < goals.margen_objetivo_pct * 0.85) {
+    goalAlerts.push(`Margen ${kpis.margen_porcentaje.toFixed(1)}% por debajo del objetivo de ${goals.margen_objetivo_pct}%`)
+  }
+  if (goals?.facturacion_objetivo_mes && kpis.facturacion_total < goals.facturacion_objetivo_mes * 0.85) {
+    goalAlerts.push(`Facturación ${kpis.facturacion_total.toLocaleString('es-ES')} € por debajo del objetivo de ${goals.facturacion_objetivo_mes.toLocaleString('es-ES')} €/mes`)
   }
 
   const ext = kpis.extended_data as KPIsExtendedData | undefined
@@ -349,6 +365,21 @@ function TabResumen({
 
   return (
     <div className="space-y-5">
+
+      {/* Alerta de desviación de objetivos */}
+      {goalAlerts.length > 0 && (
+        <div className="bg-red-950/50 border border-red-800/50 rounded-xl px-4 py-3 flex items-start gap-3">
+          <span className="text-red-400 text-base shrink-0 mt-0.5">⚠️</span>
+          <div>
+            <p className="text-red-300 text-sm font-medium mb-1">Desviación respecto a objetivos</p>
+            <ul className="space-y-0.5">
+              {goalAlerts.map((a, i) => (
+                <li key={i} className="text-red-400 text-xs">{a}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
 
       {/* Hero — diferente según pipeline */}
       {isFacturas ? (
@@ -430,6 +461,9 @@ function TabResumen({
       {ext?.pipeline !== 'facturas' && oport && (
         <OportunidadesDonut oport={oport} potencialTotal={potencialMensual} />
       )}
+
+      {/* Módulo de objetivos */}
+      <GoalsPanel goals={config?.goals} kpis={kpis} />
     </div>
   )
 }
