@@ -26,7 +26,7 @@ export async function middleware(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
   const { pathname } = request.nextUrl
-  const isPublicRoute = ['/login'].includes(pathname)
+  const isPublicRoute = ['/login', '/pricing'].includes(pathname) || pathname.startsWith('/pricing')
 
   if (!user && !isPublicRoute) {
     return NextResponse.redirect(new URL('/login', request.url))
@@ -35,7 +35,8 @@ export async function middleware(request: NextRequest) {
   if (user && isPublicRoute) {
     const { data: roleData } = await supabase
       .from('user_roles').select('role').eq('user_id', user.id).single()
-    const destination = roleData?.role === 'admin' ? '/admin' : '/dashboard'
+    const role = roleData?.role
+    const destination = role === 'admin' ? '/admin' : role === 'comercial' ? '/comercial' : '/dashboard'
     return NextResponse.redirect(new URL(destination, request.url))
   }
 
@@ -44,6 +45,15 @@ export async function middleware(request: NextRequest) {
       .from('user_roles').select('role').eq('user_id', user.id).single()
     if (roleData?.role !== 'admin') {
       return NextResponse.redirect(new URL('/dashboard', request.url))
+    }
+  }
+
+  if (pathname.startsWith('/comercial') && user) {
+    const { data: roleData } = await supabase
+      .from('user_roles').select('role').eq('user_id', user.id).single()
+    if (roleData?.role !== 'comercial') {
+      const dest = roleData?.role === 'admin' ? '/admin' : '/dashboard'
+      return NextResponse.redirect(new URL(dest, request.url))
     }
   }
 

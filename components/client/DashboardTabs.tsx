@@ -20,6 +20,7 @@ import TendenciaChart from '@/components/client/charts/TendenciaChart'
 import MargenChart from '@/components/client/charts/MargenChart'
 import ComercialesChart from '@/components/client/charts/ComercialesChart'
 import GoalsPanel from '@/components/client/GoalsPanel'
+import RequestCycleButton from '@/components/client/RequestCycleButton'
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -112,7 +113,13 @@ export default function DashboardTabs({
                 </span>
               )}
             </div>
-            <SignOutButton />
+            <div className="flex items-center gap-2">
+              <a href="/billing"
+                className="text-slate-400 hover:text-slate-200 text-xs border border-slate-700 hover:border-slate-600 px-3 py-1.5 rounded-lg transition-colors hidden sm:block">
+                💳 Plan
+              </a>
+              <SignOutButton />
+            </div>
           </div>
 
           {/* Tab nav */}
@@ -188,11 +195,14 @@ function TabDrive({
 }) {
   if (!cycle) {
     return (
-      <EmptyState
-        emoji="🚀"
-        title="Bienvenido a Vysite Margen"
-        desc="Tu primer análisis está siendo configurado. Recibirás un aviso cuando esté listo para subir tu CSV."
-      />
+      <div className="space-y-5">
+        <EmptyState
+          emoji="🚀"
+          title="Bienvenido a Vysite Margen"
+          desc="Aún no tienes ningún ciclo activo. Solicita tu primer análisis para empezar."
+        />
+        <RequestCycleButton />
+      </div>
     )
   }
 
@@ -237,7 +247,15 @@ function TabDrive({
         {status === 'completado' && (
           <StatusBanner color="emerald" icon="🎯" title="Análisis completado" desc="Consulta las pestañas Resumen, Margen y Oportunidades para ver tus resultados." />
         )}
+        {status === 'cancelado' && (
+          <StatusBanner color="slate" icon="⛔" title="Ciclo cancelado" desc="Este ciclo fue cancelado. Puedes solicitar un nuevo análisis." />
+        )}
       </div>
+
+      {/* Solicitar nuevo ciclo cuando el actual está completado/cancelado */}
+      {(status === 'completado' || status === 'cancelado') && (
+        <RequestCycleButton />
+      )}
 
       {/* Archivos CSV subidos */}
       {files.length > 0 && (
@@ -992,17 +1010,19 @@ function KPICard({
 function StatusBanner({
   color, icon, title, desc,
 }: {
-  color: 'blue' | 'purple' | 'emerald'; icon: string; title: string; desc: string
+  color: 'blue' | 'purple' | 'emerald' | 'slate'; icon: string; title: string; desc: string
 }) {
   const styles = {
     blue:    'bg-blue-500/10 border-blue-500/20 text-blue-300',
     purple:  'bg-purple-500/10 border-purple-500/20 text-purple-300',
     emerald: 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300',
+    slate:   'bg-slate-800/50 border-slate-700/50 text-slate-300',
   }
   const subStyles = {
     blue:    'text-blue-400/70',
     purple:  'text-purple-400/70',
     emerald: 'text-emerald-400/70',
+    slate:   'text-slate-500',
   }
   return (
     <div className={`border rounded-xl p-4 flex items-center gap-3 ${styles[color]}`}>
