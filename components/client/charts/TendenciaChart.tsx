@@ -3,6 +3,11 @@
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts'
+interface TooltipContentProps {
+  active?: boolean
+  payload?: Array<{ value: number }>
+  label?: string
+}
 
 interface Props {
   data: Array<{ mes: string; facturacion: number }>
@@ -25,11 +30,11 @@ function formatMes(mes: string): string {
   }
 }
 
-function CustomTooltip({ active, payload, label }: any) {
+function CustomTooltip({ active, payload, label }: TooltipContentProps) {
   if (!active || !payload?.length) return null
   return (
     <div className="bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 shadow-xl">
-      <p className="text-slate-400 text-xs mb-1">{formatMes(label)}</p>
+      <p className="text-slate-400 text-xs mb-1">{formatMes(label ?? '')}</p>
       <p className="text-white text-sm font-semibold tabular-nums">
         {(payload[0]?.value as number)?.toLocaleString('es-ES')} €
       </p>

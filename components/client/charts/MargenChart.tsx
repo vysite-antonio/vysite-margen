@@ -3,6 +3,11 @@
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts'
+interface TooltipContentProps {
+  active?: boolean
+  payload?: Array<{ value?: number | string; dataKey?: string }>
+  label?: string
+}
 
 interface Props {
   data: Array<{ categoria: string; margen_pct: number; facturacion: number }>
@@ -15,7 +20,7 @@ function getBarColor(margen: number): string {
   return '#ef4444'                     // red
 }
 
-function CustomTooltip({ active, payload, label }: any) {
+function CustomTooltip({ active, payload, label }: TooltipContentProps) {
   if (!active || !payload?.length) return null
   const d = payload[0]
   const d1 = payload[1]
@@ -23,7 +28,7 @@ function CustomTooltip({ active, payload, label }: any) {
     <div className="bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 shadow-xl min-w-[140px]">
       <p className="text-white text-xs font-semibold mb-2">{label}</p>
       <p className="text-slate-300 text-xs">
-        Margen: <span className="text-white font-semibold">{d?.value?.toFixed(1)}%</span>
+        Margen: <span className="text-white font-semibold">{(d?.value as number | undefined)?.toFixed(1)}%</span>
       </p>
       {d1 && (
         <p className="text-slate-300 text-xs mt-0.5">

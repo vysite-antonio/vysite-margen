@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import type { PlanTier } from '@/types'
 import DashboardTabs from '@/components/client/DashboardTabs'
-import { captureError } from '@/lib/monitoring'
+import { captureError } from '@/lib/monitoring.server'
 
 export default async function ClientDashboard() {
   const supabase = await createClient()

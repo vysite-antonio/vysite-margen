@@ -1,9 +1,12 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { CYCLE_STATUS_LABELS, CYCLE_STATUS_COLORS, CycleStatus } from '@/types'
+import {
+  CYCLE_STATUS_LABELS, CYCLE_STATUS_COLORS, CycleStatus,
+  ComercialClientRow, ComercialAssignment,
+} from '@/types'
 import Link from 'next/link'
 import SignOutButton from '@/components/SignOutButton'
-import { captureError } from '@/lib/monitoring'
+import { captureError } from '@/lib/monitoring.server'
 
 export default async function ComercialDashboard() {
   const supabase = await createClient()
@@ -18,7 +21,7 @@ export default async function ComercialDashboard() {
   const displayName = (user.user_metadata?.display_name as string) ?? user.email ?? 'Comercial'
 
   // Obtener IDs de clientes asignados
-  let clients: any[] = []
+  let clients: ComercialClientRow[] = []
 
   try {
     const { data: assignments } = await supabase
@@ -26,7 +29,7 @@ export default async function ComercialDashboard() {
       .select('client_id')
       .eq('comercial_user_id', user.id)
 
-    const clientIds = (assignments ?? []).map((a: any) => a.client_id)
+    const clientIds = (assignments as ComercialAssignment[] ?? []).map(a => a.client_id)
 
     if (clientIds.length > 0) {
       const { data: clientsData, error: clientsError } = await supabase
@@ -43,7 +46,7 @@ export default async function ComercialDashboard() {
         .order('company_name')
 
       if (clientsError) await captureError(clientsError, { module: 'comercial-dashboard' })
-      else clients = clientsData ?? []
+      else clients = (clientsData ?? []) as ComercialClientRow[]
     }
   } catch (err) {
     await captureError(err, { module: 'comercial-dashboard' })
@@ -51,14 +54,14 @@ export default async function ComercialDashboard() {
 
   // Calcular stats globales
   const totalPotencial = clients.reduce((acc, c) => {
-    const latestCycle = [...(c.analysis_cycles ?? [])].sort((a: any, b: any) =>
+    const latestCycle = [...c.analysis_cycles].sort((a, b) =>
       new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
     )[0]
-    return acc + ((latestCycle?.kpis?.[0]?.potencial_mensual) ?? 0)
+    return acc + (latestCycle?.kpis[0]?.potencial_mensual ?? 0)
   }, 0)
 
   const completedCount = clients.filter(c =>
-    (c.analysis_cycles ?? []).some((cy: any) => cy.status === 'completado')
+    c.analysis_cycles.some(cy => cy.status === 'completado')
   ).length
 
   return (
@@ -109,9 +112,9 @@ export default async function ComercialDashboard() {
             </div>
           )}
 
-          {clients.map((client: any) => {
-            const sortedCycles = [...(client.analysis_cycles ?? [])].sort(
-              (a: any, b: any) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+          {clients.map((client) => {
+            const sortedCycles = [...client.analysis_cycles].sort(
+              (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
             )
             const latestCycle = sortedCycles[0] ?? null
             const kpis = latestCycle?.kpis?.[0] ?? null

@@ -1,9 +1,12 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { CYCLE_STATUS_LABELS, CYCLE_STATUS_COLORS, CycleStatus } from '@/types'
+import {
+  CYCLE_STATUS_LABELS, CYCLE_STATUS_COLORS, CycleStatus,
+  AdminClientRow, AdminStatCycle, SystemLog,
+} from '@/types'
 import Link from 'next/link'
 import SignOutButton from '@/components/SignOutButton'
-import { captureError } from '@/lib/monitoring'
+import { captureError } from '@/lib/monitoring.server'
 
 export default async function AdminDashboard() {
   const supabase = await createClient()
@@ -17,15 +20,15 @@ export default async function AdminDashboard() {
   if (roleError || roleData?.role !== 'admin') redirect('/dashboard')
 
   // Datos del panel: errores individuales no bloquean el render completo
-  let clients: any[] = []
-  let logs: any[] = []
-  let allCycles: any[] = []
+  let clients: AdminClientRow[] = []
+  let logs: SystemLog[] = []
+  let allCycles: AdminStatCycle[] = []
 
   try {
     const [clientsRes, logsRes, cyclesRes] = await Promise.all([
       supabase
         .from('clients')
-        .select(`*, analysis_cycles(id, status, period_start, period_end, updated_at, created_at, uploaded_files(id, uploaded_at), reports(id), kpis(potencial_mensual, total_oportunidades))`)
+        .select(`id, company_name, contact_name, contact_email, plan, is_active, analysis_cycles(id, status, period_start, period_end, updated_at, created_at, uploaded_files(id, uploaded_at), reports(id), kpis(potencial_mensual, total_oportunidades))`)
         .eq('is_active', true)
         .is('deleted_at', null)
         .order('company_name'),
@@ -34,22 +37,22 @@ export default async function AdminDashboard() {
       supabase
         .from('analysis_cycles').select('status, kpis(potencial_mensual)'),
     ])
-    if (clientsRes.error) console.error('[admin] clients:', clientsRes.error)
-    else clients = clientsRes.data ?? []
-    if (logsRes.error) console.error('[admin] logs:', logsRes.error)
-    else logs = logsRes.data ?? []
-    if (cyclesRes.error) console.error('[admin] allCycles:', cyclesRes.error)
-    else allCycles = cyclesRes.data ?? []
+    if (clientsRes.error) await captureError(clientsRes.error, { module: 'admin/clients' })
+    else clients = (clientsRes.data ?? []) as AdminClientRow[]
+    if (logsRes.error) await captureError(logsRes.error, { module: 'admin/logs' })
+    else logs = (logsRes.data ?? []) as SystemLog[]
+    if (cyclesRes.error) await captureError(cyclesRes.error, { module: 'admin/cycles' })
+    else allCycles = (cyclesRes.data ?? []) as AdminStatCycle[]
   } catch (err) {
     await captureError(err, { module: 'admin' })
   }
 
   const stats = {
-    total_clients: clients?.length || 0,
-    pending_csv: allCycles?.filter(c => c.status === 'esperando_csv').length || 0,
-    csv_received: allCycles?.filter(c => c.status === 'csv_recibido').length || 0,
-    completed: allCycles?.filter(c => c.status === 'completado').length || 0,
-    total_potential: (allCycles as any[])?.reduce((acc, c) => acc + ((c.kpis as any[])?.[0]?.potencial_mensual || 0), 0) || 0,
+    total_clients: clients.length,
+    pending_csv:   allCycles.filter(c => c.status === 'esperando_csv').length,
+    csv_received:  allCycles.filter(c => c.status === 'csv_recibido').length,
+    completed:     allCycles.filter(c => c.status === 'completado').length,
+    total_potential: allCycles.reduce((acc, c) => acc + (c.kpis[0]?.potencial_mensual ?? 0), 0),
   }
 
   const logEmoji: Record<string, string> = { csv_subido:'📤', informe_subido:'📊', kpis_actualizados:'🎯', ciclo_creado:'🔄', cliente_creado:'👤', login:'🔑', logout:'🚪', error_aplicacion:'🔴', error_cliente:'🟠' }
@@ -102,8 +105,8 @@ export default async function AdminDashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-3">
             <h2 className="text-white font-semibold mb-4">Estado de clientes</h2>
-            {clients?.map((client: any) => {
-              const latestCycle = [...(client.analysis_cycles||[])].sort((a:any,b:any) => new Date(b.updated_at).getTime()-new Date(a.updated_at).getTime())[0]
+            {clients.map((client) => {
+              const latestCycle = [...client.analysis_cycles].sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())[0]
               return (
                 <Link key={client.id} href={`/admin/clients/${client.id}`}
                   className="block bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-xl p-5 transition-colors">
@@ -138,7 +141,7 @@ export default async function AdminDashboard() {
                 </Link>
               )
             })}
-            {!clients?.length && (
+            {!clients.length && (
               <div className="bg-slate-900 border border-slate-800 rounded-xl p-8 text-center">
                 <p className="text-slate-400 text-sm">No hay clientes activos.</p>
                 <Link href="/admin/clients/new" className="text-emerald-400 text-sm hover:underline mt-1 inline-block">Crear primer cliente →</Link>
@@ -150,17 +153,17 @@ export default async function AdminDashboard() {
             <h2 className="text-white font-semibold mb-4">Log del sistema</h2>
             <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
               <div className="divide-y divide-slate-800 max-h-[600px] overflow-y-auto">
-                {logs?.map((log: any) => (
+                {logs.map((log) => (
                   <div key={log.id} className="px-4 py-3">
                     <div className="flex items-center gap-2 mb-1">
                       <span className="text-xs">{logEmoji[log.action]||'📝'}</span>
                       <span className="text-slate-300 text-xs font-medium">{logLabel[log.action]||log.action}</span>
                     </div>
-                    {log.details?.file_name && <p className="text-slate-500 text-xs truncate">{log.details.file_name}</p>}
+                    {typeof log.details?.file_name === 'string' && <p className="text-slate-500 text-xs truncate">{log.details.file_name as string}</p>}
                     <p className="text-slate-600 text-xs mt-1">{new Date(log.created_at).toLocaleDateString('es-ES',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</p>
                   </div>
                 ))}
-                {!logs?.length && <div className="px-4 py-6 text-center"><p className="text-slate-500 text-xs">Sin actividad registrada</p></div>}
+                {!logs.length && <div className="px-4 py-6 text-center"><p className="text-slate-500 text-xs">Sin actividad registrada</p></div>}
               </div>
             </div>
           </div>

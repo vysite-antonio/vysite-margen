@@ -1,7 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
-import { captureError } from '@/lib/monitoring'
+import { captureError } from '@/lib/monitoring.server'
 
 // ─── Cálculo automático de período ───────────────────────────────────────────
 

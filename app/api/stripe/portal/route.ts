@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { stripe } from '@/lib/stripe'
-import { captureError } from '@/lib/monitoring'
+import { captureError } from '@/lib/monitoring.server'
 
 /**
  * POST /api/stripe/portal

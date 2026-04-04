@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
 import { createClient } from '@/lib/supabase/server'
-import { captureError } from '@/lib/monitoring'
-
-// Stripe requiere el body raw (sin parsear) para verificar la firma
-export const config = { api: { bodyParser: false } }
+import { captureError } from '@/lib/monitoring.server'
 
 const WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET ?? ''
 
@@ -67,7 +64,7 @@ export async function POST(req: NextRequest) {
 
       // ── Suscripción actualizada (upgrade/downgrade, renovación) ──────────
       case 'customer.subscription.updated': {
-        const sub = event.data.object as {
+        const sub = event.data.object as unknown as {
           id: string
           status: string
           current_period_end: number
@@ -134,7 +131,7 @@ export async function POST(req: NextRequest) {
 
       // ── Pago fallido: notificar (no bajar plan inmediatamente) ────────────
       case 'invoice.payment_failed': {
-        const invoice = event.data.object as {
+        const invoice = event.data.object as unknown as {
           customer: string
           subscription: string
         }

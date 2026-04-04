@@ -293,3 +293,82 @@ export const REPORT_TYPE_ICONS: Record<ReportType, string> = {
   dashboard: '📊',
 }
 
+// ─── Tipos de query para el panel de admin ─────────────────────────────────────
+
+export interface SystemLog {
+  id: string
+  action: string
+  user_id: string | null
+  client_id: string | null
+  details: Record<string, unknown>
+  ip_address: string | null
+  user_agent: string | null
+  created_at: string
+}
+
+/** KPIs anidados en ciclos del panel admin */
+export interface AdminCycleKpi {
+  potencial_mensual: number
+  total_oportunidades: number
+}
+
+/** Ciclo anidado en el query de admin */
+export interface AdminCycleRow {
+  id: string
+  status: CycleStatus
+  period_start: string
+  period_end: string
+  updated_at: string
+  created_at: string
+  uploaded_files: Array<{ id: string; uploaded_at: string }>
+  reports: Array<{ id: string }>
+  kpis: AdminCycleKpi[]
+}
+
+/** Cliente con ciclos anidados, tal como lo devuelve el query de admin */
+export interface AdminClientRow {
+  id: string
+  company_name: string
+  contact_name: string
+  contact_email: string
+  plan: PlanTier
+  is_active: boolean
+  analysis_cycles: AdminCycleRow[]
+}
+
+/** Ciclo resumido para las estadísticas globales de admin */
+export interface AdminStatCycle {
+  status: CycleStatus
+  kpis: Array<{ potencial_mensual: number }>
+}
+
+// ─── Tipos de query para el dashboard de comercial ────────────────────────────
+
+export interface ComercialAssignment {
+  client_id: string
+}
+
+export interface ComercialCycleKpi {
+  potencial_mensual: number
+  margen_porcentaje: number
+  facturacion_total: number
+}
+
+export interface ComercialCycleRow {
+  id: string
+  status: CycleStatus
+  period_start: string
+  period_end: string
+  updated_at: string
+  kpis: ComercialCycleKpi[]
+}
+
+export interface ComercialClientRow {
+  id: string
+  company_name: string
+  contact_name: string
+  contact_email: string
+  plan: PlanTier
+  analysis_cycles: ComercialCycleRow[]
+}
+

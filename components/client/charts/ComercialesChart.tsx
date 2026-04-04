@@ -3,6 +3,13 @@
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell,
 } from 'recharts'
+import type { LegendPayload } from 'recharts/types/component/DefaultLegendContent'
+
+interface TooltipContentProps {
+  active?: boolean
+  payload?: Array<{ dataKey: string | number; name: string; value: number; fill?: string }>
+  label?: string
+}
 
 interface ComercialSales {
   nombre_erp: string
@@ -20,13 +27,13 @@ interface Props {
   pipeline?: string
 }
 
-function CustomTooltip({ active, payload, label }: any) {
+function CustomTooltip({ active, payload, label }: TooltipContentProps) {
   if (!active || !payload?.length) return null
   return (
     <div className="bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 shadow-xl min-w-[160px]">
       <p className="text-white text-xs font-semibold mb-2">{label}</p>
-      {payload.map((p: any) => (
-        <p key={p.dataKey} className="text-xs mt-0.5" style={{ color: p.fill }}>
+      {payload.map((p) => (
+        <p key={p.dataKey as string} className="text-xs mt-0.5" style={{ color: p.fill }}>
           {p.name}: <span className="text-white font-semibold tabular-nums">{(p.value as number)?.toLocaleString('es-ES')} €</span>
         </p>
       ))}
@@ -34,10 +41,10 @@ function CustomTooltip({ active, payload, label }: any) {
   )
 }
 
-function CustomLegend({ payload }: any) {
+function CustomLegend({ payload }: { payload?: LegendPayload[] }) {
   return (
     <div className="flex justify-center gap-5 mt-2">
-      {payload?.map((entry: any) => (
+      {payload?.map((entry) => (
         <div key={entry.value} className="flex items-center gap-1.5">
           <span className="w-3 h-3 rounded-sm shrink-0" style={{ background: entry.color }} />
           <span className="text-slate-400 text-xs">{entry.value}</span>

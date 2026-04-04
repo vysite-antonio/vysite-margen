@@ -3,6 +3,12 @@
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts'
+import type { LegendPayload } from 'recharts/types/component/DefaultLegendContent'
+
+interface TooltipContentProps {
+  active?: boolean
+  payload?: Array<{ name: string; value: number }>
+}
 
 interface Props {
   oport: {
@@ -22,7 +28,7 @@ const CONFIG = [
 ]
 
 // Tooltip personalizado
-function CustomTooltip({ active, payload }: any) {
+function CustomTooltip({ active, payload }: TooltipContentProps) {
   if (!active || !payload?.length) return null
   const d = payload[0]
   return (
@@ -33,10 +39,10 @@ function CustomTooltip({ active, payload }: any) {
   )
 }
 
-function CustomLegend({ payload }: any) {
+function CustomLegend({ payload }: { payload?: LegendPayload[] }) {
   return (
     <ul className="flex flex-wrap justify-center gap-x-4 gap-y-1 mt-2">
-      {payload?.map((entry: any) => (
+      {payload?.map((entry) => (
         <li key={entry.value} className="flex items-center gap-1.5">
           <span className="w-2 h-2 rounded-full shrink-0" style={{ background: entry.color }} />
           <span className="text-slate-400 text-xs">{entry.value}</span>
