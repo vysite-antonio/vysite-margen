@@ -11,6 +11,8 @@ import type {
   Report,
   PlanTier,
   ClientConfig,
+  IncentiveRule,
+  CommissionConfig,
 } from '@/types'
 import { CYCLE_STATUS_LABELS, CYCLE_STATUS_COLORS, REPORT_TYPE_LABELS, REPORT_TYPE_ICONS } from '@/types'
 import UploadCSVButton from '@/components/client/UploadCSVButton'
@@ -21,10 +23,12 @@ import MargenChart from '@/components/client/charts/MargenChart'
 import ComercialesChart from '@/components/client/charts/ComercialesChart'
 import GoalsPanel from '@/components/client/GoalsPanel'
 import RequestCycleButton from '@/components/client/RequestCycleButton'
+import IncentiveSimulator from '@/components/client/IncentiveSimulator'
+import IncentiveConfig from '@/components/client/IncentiveConfig'
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
-type Tab = 'drive' | 'resumen' | 'margen' | 'oportunidades' | 'comerciales' | 'riesgo'
+type Tab = 'drive' | 'resumen' | 'margen' | 'oportunidades' | 'comerciales' | 'riesgo' | 'objetivos'
 
 interface TabDef {
   id: Tab
@@ -40,6 +44,7 @@ const TABS: TabDef[] = [
   { id: 'oportunidades',label: 'Oportunidades',  icon: '🎯', plan: 'crecimiento' },
   { id: 'comerciales',  label: 'Comerciales',    icon: '👤', plan: 'estrategico' },
   { id: 'riesgo',       label: 'Riesgo',         icon: '⚠️', plan: 'estrategico' },
+  { id: 'objetivos',    label: 'Objetivos',      icon: '🏆', plan: 'estrategico' },
 ]
 
 const PLAN_ORDER: Record<PlanTier, number> = {
@@ -63,6 +68,9 @@ export interface DashboardTabsProps {
   config: ClientConfig
   cycle: (AnalysisCycle & { uploaded_files: UploadedFile[]; reports: Report[] }) | null
   kpis: KPIs | null
+  incentiveRules: IncentiveRule[]
+  commissionConfig: CommissionConfig | null
+  isAdmin?: boolean
 }
 
 // ─── Componente principal ─────────────────────────────────────────────────────
@@ -75,6 +83,9 @@ export default function DashboardTabs({
   config,
   cycle,
   kpis,
+  incentiveRules,
+  commissionConfig,
+  isAdmin = false,
 }: DashboardTabsProps) {
   const [activeTab, setActiveTab] = useState<Tab>('drive')
 
@@ -178,6 +189,17 @@ export default function DashboardTabs({
           isPlanUnlocked(plan, 'estrategico')
             ? <TabRiesgo kpis={kpis} />
             : <FomoOverlay tab="riesgo" requiredPlan="estrategico" kpis={kpis} />
+        )}
+        {activeTab === 'objetivos' && (
+          isPlanUnlocked(plan, 'estrategico')
+            ? <TabObjetivos
+                clientId={clientId}
+                kpis={kpis}
+                rules={incentiveRules}
+                commissionConfig={commissionConfig}
+                isAdmin={isAdmin}
+              />
+            : <FomoOverlay tab="objetivos" requiredPlan="estrategico" kpis={kpis} />
         )}
       </main>
     </div>
@@ -896,6 +918,7 @@ const FOMO_PREVIEWS: Record<Tab, string> = {
   oportunidades: 'Identifica los clientes exactos con mayor potencial y las acciones comerciales concretas para recuperar margen.',
   comerciales: 'Analiza el rendimiento de cada comercial, identifica quién tiene más potencial sin aprovechar y actúa.',
   riesgo: 'Detecta antes que nadie qué clientes están cayendo y cuánto dinero está en riesgo real de perderse.',
+  objetivos: 'Simula en tiempo real cuánto puedes ganar mejorando tus ventas por categoría. Ve el impacto exacto en tu comisión.',
 }
 
 function FomoOverlay({
@@ -1041,6 +1064,72 @@ function EmptyState({ emoji, title, desc }: { emoji: string; title: string; desc
       <div className="text-4xl mb-3">{emoji}</div>
       <h2 className="text-white font-semibold text-base mb-2">{title}</h2>
       <p className="text-slate-400 text-sm max-w-xs mx-auto">{desc}</p>
+    </div>
+  )
+}
+
+// ─── Tab: Objetivos (Incentive Simulator + Config) ────────────────────────────
+
+function TabObjetivos({
+  clientId,
+  kpis,
+  rules,
+  commissionConfig,
+  isAdmin,
+}: {
+  clientId: string
+  kpis: KPIs | null
+  rules: IncentiveRule[]
+  commissionConfig: CommissionConfig | null
+  isAdmin: boolean
+}) {
+  const [refreshKey, setRefreshKey] = useState(0)
+  const [activeSubTab, setActiveSubTab] = useState<'simulator' | 'config'>('simulator')
+
+  return (
+    <div className="space-y-5">
+      {/* Sub-tabs: Simulador / Configuración (solo admin) */}
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => setActiveSubTab('simulator')}
+          className={`px-4 py-2 rounded-lg text-xs font-medium border transition-colors
+            ${activeSubTab === 'simulator'
+              ? 'bg-emerald-500/20 border-emerald-600 text-emerald-300'
+              : 'border-slate-700 text-slate-400 hover:border-slate-600 hover:text-slate-200'}`}
+        >
+          🎮 Simulador
+        </button>
+        {isAdmin && (
+          <button
+            onClick={() => setActiveSubTab('config')}
+            className={`px-4 py-2 rounded-lg text-xs font-medium border transition-colors
+              ${activeSubTab === 'config'
+                ? 'bg-emerald-500/20 border-emerald-600 text-emerald-300'
+                : 'border-slate-700 text-slate-400 hover:border-slate-600 hover:text-slate-200'}`}
+          >
+            ⚙️ Configurar reglas
+          </button>
+        )}
+      </div>
+
+      {activeSubTab === 'simulator' && (
+        <IncentiveSimulator
+          key={refreshKey}
+          clientId={clientId}
+          kpis={kpis}
+          rules={rules}
+          commissionConfig={commissionConfig}
+        />
+      )}
+
+      {activeSubTab === 'config' && isAdmin && (
+        <IncentiveConfig
+          clientId={clientId}
+          rules={rules}
+          commissionConfig={commissionConfig}
+          onRefresh={() => setRefreshKey(k => k + 1)}
+        />
+      )}
     </div>
   )
 }

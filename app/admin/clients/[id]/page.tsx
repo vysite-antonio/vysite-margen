@@ -6,6 +6,8 @@ import CreateCycleButton from '@/components/admin/CreateCycleButton'
 import UploadReportButton from '@/components/admin/UploadReportButton'
 import UpdateKPIsForm from '@/components/admin/UpdateKPIsForm'
 import UpdateCycleStatus from '@/components/admin/UpdateCycleStatus'
+import IncentiveConfig from '@/components/client/IncentiveConfig'
+import { getIncentiveRules, getCommissionConfig } from '@/lib/actions/incentives'
 
 export default async function AdminClientDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -18,14 +20,21 @@ export default async function AdminClientDetail({ params }: { params: Promise<{ 
   const { data: client } = await supabase.from('clients').select('*').eq('id', id).single()
   if (!client) notFound()
 
-  const { data: cycles } = await supabase
-    .from('analysis_cycles')
-    .select('*, uploaded_files(*), reports(*), kpis(*)')
-    .eq('client_id', client.id)
-    .order('created_at', { ascending: false })
+  const [cyclesRes, rulesRes, configRes] = await Promise.all([
+    supabase
+      .from('analysis_cycles')
+      .select('*, uploaded_files(*), reports(*), kpis(*)')
+      .eq('client_id', client.id)
+      .order('created_at', { ascending: false }),
+    getIncentiveRules(client.id),
+    getCommissionConfig(client.id),
+  ])
 
+  const cycles     = cyclesRes.data
   const latestCycle = cycles?.[0] || null
   const kpis = latestCycle?.kpis?.[0] || null
+  const incentiveRules   = rulesRes.rules
+  const commissionConfig = configRes.config
 
   return (
     <div className="min-h-screen bg-slate-950">
@@ -135,6 +144,14 @@ export default async function AdminClientDetail({ params }: { params: Promise<{ 
             <CreateCycleButton clientId={client.id}/>
           </div>
         )}
+
+        {/* Módulo de incentivos */}
+        <IncentiveConfig
+          clientId={client.id}
+          rules={incentiveRules}
+          commissionConfig={commissionConfig}
+          onRefresh={() => {}}
+        />
       </div>
     </div>
   )

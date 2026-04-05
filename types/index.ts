@@ -372,3 +372,59 @@ export interface ComercialClientRow {
   analysis_cycles: ComercialCycleRow[]
 }
 
+// ─── Módulo de objetivos comerciales / incentivos ─────────────────────────────
+
+export type IncentiveType = 'multiplier' | 'bonus' | 'percentage'
+export type TierName = 'bronce' | 'plata' | 'oro'
+export type CommissionBaseType = 'flat' | 'tiered'
+
+export interface IncentiveRule {
+  id: string
+  client_id: string
+  category: string
+  threshold_amount: number
+  incentive_type: IncentiveType
+  incentive_value: number
+  tier_name: TierName
+  active: boolean
+  created_at: string
+}
+
+export interface CommissionTier {
+  up_to: number | null  // null = sin límite superior
+  percentage: number
+}
+
+export interface CommissionConfig {
+  id: string
+  client_id: string
+  base_type: CommissionBaseType
+  base_percentage: number
+  tiers: CommissionTier[]
+  active: boolean
+  created_at: string
+  updated_at: string
+}
+
+/** Resultado del cálculo de comisión para una simulación */
+export interface CommissionResult {
+  base: number
+  bonuses: Array<{
+    category: string
+    tier: TierName
+    label: string
+    amount: number
+    type: IncentiveType
+  }>
+  total: number
+  multiplier: number
+}
+
+/** Categoría con sus ventas actuales y reglas de incentivo */
+export interface CategoryIncentiveState {
+  category: string
+  currentSales: number
+  simulatedSales: number
+  rules: IncentiveRule[]
+}
+

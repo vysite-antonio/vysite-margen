@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import type { PlanTier } from '@/types'
 import DashboardTabs from '@/components/client/DashboardTabs'
 import { captureError } from '@/lib/monitoring.server'
+import { getIncentiveRules, getCommissionConfig } from '@/lib/actions/incentives'
 
 export default async function ClientDashboard() {
   const supabase = await createClient()
@@ -21,18 +22,24 @@ export default async function ClientDashboard() {
   // Datos del ciclo: si falla, el dashboard se muestra sin ciclo (degradado graceful)
   let cycle = null
   let kpis = null
+  let incentiveRules: import('@/types').IncentiveRule[] = []
+  let commissionConfig: import('@/types').CommissionConfig | null = null
 
   try {
-    const { data: cycles, error: cyclesError } = await supabase
-      .from('analysis_cycles')
-      .select('*, uploaded_files(*), reports(*), kpis(*)')
-      .eq('client_id', client.id)
-      .order('created_at', { ascending: false })
-      .limit(1)
+    const [cyclesRes, rulesRes, configRes] = await Promise.all([
+      supabase
+        .from('analysis_cycles')
+        .select('*, uploaded_files(*), reports(*), kpis(*)')
+        .eq('client_id', client.id)
+        .order('created_at', { ascending: false })
+        .limit(1),
+      getIncentiveRules(client.id),
+      getCommissionConfig(client.id),
+    ])
 
-    if (cyclesError) throw cyclesError
+    if (cyclesRes.error) throw cyclesRes.error
 
-    const latestCycle = cycles?.[0] ?? null
+    const latestCycle = cyclesRes.data?.[0] ?? null
     kpis = latestCycle?.kpis?.[0] ?? null
 
     cycle = latestCycle
@@ -49,6 +56,9 @@ export default async function ClientDashboard() {
           reports: latestCycle.reports ?? [],
         }
       : null
+
+    incentiveRules  = rulesRes.rules
+    commissionConfig = configRes.config
   } catch (err) {
     await captureError(err, { module: 'dashboard', client_id: client.id })
     // El dashboard se carga sin ciclo — el usuario ve estado vacío en lugar de error 500
@@ -63,6 +73,8 @@ export default async function ClientDashboard() {
       config={client.config ?? {}}
       cycle={cycle}
       kpis={kpis}
+      incentiveRules={incentiveRules}
+      commissionConfig={commissionConfig}
     />
   )
 }
