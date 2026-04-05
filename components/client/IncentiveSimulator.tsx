@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback } from 'react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
-import { calcCommission } from '@/lib/actions/incentives'
+import { calcCommission } from '@/lib/utils/commission'
 import type { IncentiveRule, CommissionConfig, KPIs } from '@/types'
 
 // ─── Colores por categoría ────────────────────────────────────────────────────
