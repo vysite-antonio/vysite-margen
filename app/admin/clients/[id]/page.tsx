@@ -11,6 +11,9 @@ import ErpConnectionPanel from '@/components/admin/ErpConnectionPanel'
 import DataIngestionTabs from '@/components/admin/DataIngestionTabs'
 import { getIncentiveRules, getCommissionConfig } from '@/lib/actions/incentives'
 import { getErpConnection, getErpSyncLogs } from '@/lib/actions/erp-connection'
+import { getObjectives } from '@/lib/actions/objectives'
+import { getComercialsByClient } from '@/lib/actions/comerciales'
+import TeamObjectivesView from '@/components/admin/TeamObjectivesView'
 
 export default async function AdminClientDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -23,7 +26,7 @@ export default async function AdminClientDetail({ params }: { params: Promise<{ 
   const { data: client } = await supabase.from('clients').select('*').eq('id', id).single()
   if (!client) notFound()
 
-  const [cyclesRes, rulesRes, configRes, erpConnRes, erpLogsRes] = await Promise.all([
+  const [cyclesRes, rulesRes, configRes, erpConnRes, erpLogsRes, objectivesRes, comercialesRes] = await Promise.all([
     supabase
       .from('analysis_cycles')
       .select('*, uploaded_files(*), reports(*), kpis(*)')
@@ -33,6 +36,8 @@ export default async function AdminClientDetail({ params }: { params: Promise<{ 
     getCommissionConfig(client.id),
     getErpConnection(client.id),
     getErpSyncLogs(client.id, 8),
+    getObjectives(client.id),
+    getComercialsByClient(client.id),
   ])
 
   const cycles           = cyclesRes.data
@@ -42,6 +47,9 @@ export default async function AdminClientDetail({ params }: { params: Promise<{ 
   const commissionConfig = configRes.config
   const erpConnection    = erpConnRes.connection
   const syncLogs         = erpLogsRes.logs
+  const objectives       = objectivesRes.objectives
+  const comerciales      = comercialesRes.comerciales
+  const kpisData         = (kpis?.extended_data as Record<string, unknown>) ?? null
 
   return (
     <div className="min-h-screen bg-slate-950">
@@ -132,9 +140,27 @@ export default async function AdminClientDetail({ params }: { params: Promise<{ 
           </div>
         )}
 
-        {/* ── Módulo de incentivos ─────────────────────────────────────────── */}
+        {/* ── Objetivos del equipo ─────────────────────────────────────────── */}
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
+          <div className="px-6 py-4 border-b border-slate-800">
+            <h2 className="text-white font-semibold text-sm">🏆 Objetivos del equipo</h2>
+            <p className="text-slate-500 text-xs mt-0.5">
+              Configura y hace seguimiento de los objetivos de venta y comisiones.
+            </p>
+          </div>
+          <div className="p-6">
+            <TeamObjectivesView
+              clientId={client.id}
+              objectives={objectives}
+              comerciales={comerciales}
+              kpisData={kpisData}
+            />
+          </div>
+        </div>
+
+        {/* ── Reglas de incentivos ─────────────────────────────────────────── */}
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-          <h3 className="text-white font-semibold text-sm mb-4">🏆 Objetivos e incentivos</h3>
+          <h3 className="text-white font-semibold text-sm mb-4">💰 Reglas de incentivos (simulador)</h3>
           <IncentiveConfig
             clientId={client.id}
             rules={incentiveRules}

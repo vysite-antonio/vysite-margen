@@ -4,6 +4,8 @@ import type { PlanTier } from '@/types'
 import DashboardTabs from '@/components/client/DashboardTabs'
 import { captureError } from '@/lib/monitoring.server'
 import { getIncentiveRules, getCommissionConfig } from '@/lib/actions/incentives'
+import { getActiveObjectives } from '@/lib/actions/objectives'
+import type { Objective } from '@/lib/actions/objectives'
 
 export default async function ClientDashboard() {
   const supabase = await createClient()
@@ -24,9 +26,10 @@ export default async function ClientDashboard() {
   let kpis = null
   let incentiveRules: import('@/types').IncentiveRule[] = []
   let commissionConfig: import('@/types').CommissionConfig | null = null
+  let objectives: Objective[] = []
 
   try {
-    const [cyclesRes, rulesRes, configRes] = await Promise.all([
+    const [cyclesRes, rulesRes, configRes, objectivesRes] = await Promise.all([
       supabase
         .from('analysis_cycles')
         .select('*, uploaded_files(*), reports(*), kpis(*)')
@@ -35,6 +38,7 @@ export default async function ClientDashboard() {
         .limit(1),
       getIncentiveRules(client.id),
       getCommissionConfig(client.id),
+      getActiveObjectives(client.id),
     ])
 
     if (cyclesRes.error) throw cyclesRes.error
@@ -59,6 +63,7 @@ export default async function ClientDashboard() {
 
     incentiveRules  = rulesRes.rules
     commissionConfig = configRes.config
+    objectives = objectivesRes.objectives
   } catch (err) {
     await captureError(err, { module: 'dashboard', client_id: client.id })
     // El dashboard se carga sin ciclo — el usuario ve estado vacío en lugar de error 500
@@ -75,6 +80,7 @@ export default async function ClientDashboard() {
       kpis={kpis}
       incentiveRules={incentiveRules}
       commissionConfig={commissionConfig}
+      objectives={objectives}
     />
   )
 }

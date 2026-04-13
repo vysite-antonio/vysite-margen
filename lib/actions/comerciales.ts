@@ -164,3 +164,43 @@ export async function listComercialesWithClients(): Promise<{
 
   return { error: null, data: result }
 }
+
+// ─── Listar comerciales asignados a un cliente ────────────────────────────────
+
+export async function getComercialsByClient(clientId: string): Promise<{
+  comerciales: Array<{ id: string; name: string; email: string }>
+}> {
+  try {
+    const supabase = await createClient()
+
+    // Obtener comerciales asignados a este cliente
+    const { data: assignments } = await supabase
+      .from('comercial_clients')
+      .select('comercial_user_id')
+      .eq('client_id', clientId)
+
+    if (!assignments?.length) return { comerciales: [] }
+
+    const userIds = assignments.map(a => a.comercial_user_id)
+
+    // Obtener datos de usuario via admin API
+    const users = await Promise.all(
+      userIds.map(async (uid) => {
+        const { data } = await supabase.auth.admin.getUserById(uid)
+        return data?.user
+      })
+    )
+
+    const comerciales = users
+      .filter(Boolean)
+      .map(u => ({
+        id:    u!.id,
+        name:  (u!.user_metadata?.display_name as string) ?? u!.email ?? u!.id,
+        email: u!.email ?? '',
+      }))
+
+    return { comerciales }
+  } catch {
+    return { comerciales: [] }
+  }
+}

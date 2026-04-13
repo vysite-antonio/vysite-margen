@@ -25,6 +25,8 @@ import GoalsPanel from '@/components/client/GoalsPanel'
 import RequestCycleButton from '@/components/client/RequestCycleButton'
 import IncentiveSimulator from '@/components/client/IncentiveSimulator'
 import IncentiveConfig from '@/components/client/IncentiveConfig'
+import ObjectivesProgress from '@/components/client/ObjectivesProgress'
+import type { Objective } from '@/lib/actions/objectives'
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -70,6 +72,7 @@ export interface DashboardTabsProps {
   kpis: KPIs | null
   incentiveRules: IncentiveRule[]
   commissionConfig: CommissionConfig | null
+  objectives: Objective[]
   isAdmin?: boolean
 }
 
@@ -85,6 +88,7 @@ export default function DashboardTabs({
   kpis,
   incentiveRules,
   commissionConfig,
+  objectives,
   isAdmin = false,
 }: DashboardTabsProps) {
   const [activeTab, setActiveTab] = useState<Tab>('drive')
@@ -195,6 +199,7 @@ export default function DashboardTabs({
             ? <TabObjetivos
                 clientId={clientId}
                 kpis={kpis}
+                objectives={objectives}
                 rules={incentiveRules}
                 commissionConfig={commissionConfig}
                 isAdmin={isAdmin}
@@ -1073,23 +1078,34 @@ function EmptyState({ emoji, title, desc }: { emoji: string; title: string; desc
 function TabObjetivos({
   clientId,
   kpis,
+  objectives,
   rules,
   commissionConfig,
   isAdmin,
 }: {
   clientId: string
   kpis: KPIs | null
+  objectives: Objective[]
   rules: IncentiveRule[]
   commissionConfig: CommissionConfig | null
   isAdmin: boolean
 }) {
   const [refreshKey, setRefreshKey] = useState(0)
-  const [activeSubTab, setActiveSubTab] = useState<'simulator' | 'config'>('simulator')
+  const [activeSubTab, setActiveSubTab] = useState<'objetivos' | 'simulator' | 'config'>('objetivos')
 
   return (
     <div className="space-y-5">
-      {/* Sub-tabs: Simulador / Configuración (solo admin) */}
-      <div className="flex items-center gap-2">
+      {/* Sub-tabs */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <button
+          onClick={() => setActiveSubTab('objetivos')}
+          className={`px-4 py-2 rounded-lg text-xs font-medium border transition-colors
+            ${activeSubTab === 'objetivos'
+              ? 'bg-emerald-500/20 border-emerald-600 text-emerald-300'
+              : 'border-slate-700 text-slate-400 hover:border-slate-600 hover:text-slate-200'}`}
+        >
+          🎯 Mis objetivos
+        </button>
         <button
           onClick={() => setActiveSubTab('simulator')}
           className={`px-4 py-2 rounded-lg text-xs font-medium border transition-colors
@@ -1111,6 +1127,13 @@ function TabObjetivos({
           </button>
         )}
       </div>
+
+      {activeSubTab === 'objetivos' && (
+        <ObjectivesProgress
+          objectives={objectives}
+          kpis={kpis}
+        />
+      )}
 
       {activeSubTab === 'simulator' && (
         <IncentiveSimulator
