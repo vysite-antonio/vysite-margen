@@ -4,8 +4,8 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import ObjectiveWizard from '@/components/admin/ObjectiveWizard'
 import { deleteObjective } from '@/lib/actions/objectives'
-import { calcObjectiveProgress } from '@/lib/actions/objectives'
-import type { Objective, ObjectiveProgress } from '@/lib/actions/objectives'
+import { calcObjectiveProgress } from '@/lib/utils/objectives'
+import type { Objective, ObjectiveProgress } from '@/lib/utils/objectives'
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 

@@ -6,7 +6,7 @@ import { createObjective, updateObjective } from '@/lib/actions/objectives'
 import type {
   ScopeType, MetricType, PeriodType, CommissionType,
   AppliesTo, ObjectiveInput, Objective, CommissionTier,
-} from '@/lib/actions/objectives'
+} from '@/lib/utils/objectives'
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 

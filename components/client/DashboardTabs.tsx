@@ -26,7 +26,7 @@ import RequestCycleButton from '@/components/client/RequestCycleButton'
 import IncentiveSimulator from '@/components/client/IncentiveSimulator'
 import IncentiveConfig from '@/components/client/IncentiveConfig'
 import ObjectivesProgress from '@/components/client/ObjectivesProgress'
-import type { Objective } from '@/lib/actions/objectives'
+import type { Objective } from '@/lib/utils/objectives'
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 

@@ -5,7 +5,7 @@ import DashboardTabs from '@/components/client/DashboardTabs'
 import { captureError } from '@/lib/monitoring.server'
 import { getIncentiveRules, getCommissionConfig } from '@/lib/actions/incentives'
 import { getActiveObjectives } from '@/lib/actions/objectives'
-import type { Objective } from '@/lib/actions/objectives'
+import type { Objective } from '@/lib/utils/objectives'
 
 export default async function ClientDashboard() {
   const supabase = await createClient()

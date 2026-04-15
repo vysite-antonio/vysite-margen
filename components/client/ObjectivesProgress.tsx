@@ -1,8 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { calcObjectiveProgress, extractCurrentValue } from '@/lib/actions/objectives'
-import type { Objective, ObjectiveProgress } from '@/lib/actions/objectives'
+import { calcObjectiveProgress, extractCurrentValue } from '@/lib/utils/objectives'
+import type { Objective, ObjectiveProgress } from '@/lib/utils/objectives'
 import type { KPIs } from '@/types'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
