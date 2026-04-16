@@ -150,6 +150,12 @@ export async function updateErpConnectionPassword(
 ): Promise<{ ok: boolean; error: string | null }> {
   try {
     const supabase = await createClient()
+    // Solo admin
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { ok: false, error: 'No autenticado' }
+    const { data: role } = await supabase.from('user_roles').select('role').eq('user_id', user.id).single()
+    if (role?.role !== 'admin') return { ok: false, error: 'Sin permisos' }
+
     const encPass  = await encryptPassword(newPassword)
     const { error } = await supabase
       .from('erp_connections')
@@ -169,6 +175,12 @@ export async function toggleErpConnection(
 ): Promise<{ ok: boolean; error: string | null }> {
   try {
     const supabase = await createClient()
+    // Solo admin
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { ok: false, error: 'No autenticado' }
+    const { data: role } = await supabase.from('user_roles').select('role').eq('user_id', user.id).single()
+    if (role?.role !== 'admin') return { ok: false, error: 'Sin permisos' }
+
     const { error } = await supabase
       .from('erp_connections')
       .update({ status: enabled ? 'pending' : 'disabled' })
@@ -188,6 +200,12 @@ export async function testErpConnection(clientId: string): Promise<{
 }> {
   try {
     const supabase   = await createClient()
+    // Solo admin
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { ok: false, message: 'No autenticado' }
+    const { data: role } = await supabase.from('user_roles').select('role').eq('user_id', user.id).single()
+    if (role?.role !== 'admin') return { ok: false, message: 'Sin permisos' }
+
     const projectUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
@@ -215,6 +233,13 @@ export async function triggerErpSync(clientId: string): Promise<{
   ok: boolean; message: string; rows?: number
 }> {
   try {
+    // Solo admin
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { ok: false, message: 'No autenticado' }
+    const { data: role } = await supabase.from('user_roles').select('role').eq('user_id', user.id).single()
+    if (role?.role !== 'admin') return { ok: false, message: 'Sin permisos' }
+
     const projectUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 

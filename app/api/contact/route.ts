@@ -1,12 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { rateLimit, getClientIp } from '@/lib/rate-limit'
 
 /**
  * POST /api/contact
  * Guarda el lead en contact_leads y envía un email a comercial@vysite.es
  * mediante la API de Resend (o fallback a console si no está configurado).
+ * Protegido con rate limiting: 5 req / 10min por IP.
  */
 export async function POST(req: NextRequest) {
+  // ── Rate limiting: máximo 5 formularios por IP cada 10 minutos ───────────
+  const ip = getClientIp(req)
+  const rl = rateLimit(ip, 'contact', { limit: 5, windowSec: 600 })
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: 'Demasiadas solicitudes. Inténtalo de nuevo en unos minutos.' },
+      { status: 429, headers: { 'Retry-After': String(Math.ceil((rl.resetAt - Date.now()) / 1000)) } }
+    )
+  }
+
   try {
     const body = await req.json()
     const { nombre, empresa, email, telefono, mensaje } = body
