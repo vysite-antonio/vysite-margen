@@ -24,6 +24,7 @@ export default async function ClientDashboard() {
   // Datos del ciclo: si falla, el dashboard se muestra sin ciclo (degradado graceful)
   let cycle = null
   let kpis = null
+  let previousKpis: import('@/types').KPIs | null = null
   let incentiveRules: import('@/types').IncentiveRule[] = []
   let commissionConfig: import('@/types').CommissionConfig | null = null
   let objectives: Objective[] = []
@@ -35,7 +36,7 @@ export default async function ClientDashboard() {
         .select('*, uploaded_files(*), reports(*), kpis(*)')
         .eq('client_id', client.id)
         .order('created_at', { ascending: false })
-        .limit(1),
+        .limit(2),  // traemos el actual + el anterior para comparativa
       getIncentiveRules(client.id),
       getCommissionConfig(client.id),
       getActiveObjectives(client.id),
@@ -43,8 +44,10 @@ export default async function ClientDashboard() {
 
     if (cyclesRes.error) throw cyclesRes.error
 
-    const latestCycle = cyclesRes.data?.[0] ?? null
+    const latestCycle  = cyclesRes.data?.[0] ?? null
+    const previousCycle = cyclesRes.data?.[1] ?? null
     kpis = latestCycle?.kpis?.[0] ?? null
+    previousKpis = previousCycle?.kpis?.[0] ?? null
 
     cycle = latestCycle
       ? {
@@ -78,6 +81,7 @@ export default async function ClientDashboard() {
       config={client.config ?? {}}
       cycle={cycle}
       kpis={kpis}
+      previousKpis={previousKpis}
       incentiveRules={incentiveRules}
       commissionConfig={commissionConfig}
       objectives={objectives}

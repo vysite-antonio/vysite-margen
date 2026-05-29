@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import React, { useState } from 'react'
 import type {
   KPIs,
   KPIsExtendedData,
@@ -26,6 +26,8 @@ import RequestCycleButton from '@/components/client/RequestCycleButton'
 import IncentiveSimulator from '@/components/client/IncentiveSimulator'
 import IncentiveConfig from '@/components/client/IncentiveConfig'
 import ObjectivesProgress from '@/components/client/ObjectivesProgress'
+import OnboardingWizard from '@/components/client/OnboardingWizard'
+import AlertsBanner from '@/components/client/AlertsBanner'
 import type { Objective } from '@/lib/utils/objectives'
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
@@ -70,6 +72,7 @@ export interface DashboardTabsProps {
   config: ClientConfig
   cycle: (AnalysisCycle & { uploaded_files: UploadedFile[]; reports: Report[] }) | null
   kpis: KPIs | null
+  previousKpis?: KPIs | null
   incentiveRules: IncentiveRule[]
   commissionConfig: CommissionConfig | null
   objectives: Objective[]
@@ -86,6 +89,7 @@ export default function DashboardTabs({
   config,
   cycle,
   kpis,
+  previousKpis,
   incentiveRules,
   commissionConfig,
   objectives,
@@ -99,9 +103,19 @@ export default function DashboardTabs({
   })
 
   const clientesActivos = kpis?.clientes_activos ?? 0
+  const configAny = config as unknown as Record<string, unknown>
+  const showOnboarding = !isAdmin && !configAny.onboarding_completed && !cycle
 
   return (
     <div className="min-h-screen bg-slate-950">
+
+      {/* ── Onboarding wizard (clientes nuevos sin ciclos) ────────────────────── */}
+      {showOnboarding && (
+        <OnboardingWizard
+          companyName={companyName}
+          currentMargins={configAny.margins as Record<string, number> | undefined}
+        />
+      )}
 
       {/* ── Header + tabs ───────────────────────────────────────────────────── */}
       <header className="border-b border-slate-800 px-4 sticky top-0 bg-slate-950/95 backdrop-blur-sm z-20">
@@ -168,11 +182,22 @@ export default function DashboardTabs({
 
       {/* ── Contenido ──────────────────────────────────────────────────────── */}
       <main className="max-w-6xl mx-auto px-4 py-6">
+
+        {/* Alertas contextuales */}
+        {!isAdmin && (
+          <AlertsBanner
+            kpis={kpis}
+            plan={plan}
+            config={config}
+            cycle={cycle ? { status: cycle.status, created_at: cycle.created_at } : null}
+          />
+        )}
+
         {activeTab === 'drive' && (
           <TabDrive cycle={cycle} clientId={clientId} />
         )}
         {activeTab === 'resumen' && (
-          <TabResumen kpis={kpis} cycle={cycle} config={config} />
+          <TabResumen kpis={kpis} previousKpis={previousKpis ?? null} cycle={cycle} config={config} />
         )}
         {activeTab === 'margen' && (
           isPlanUnlocked(plan, 'crecimiento')
@@ -364,12 +389,35 @@ function TabDrive({
 
 // ─── Tab: Resumen ─────────────────────────────────────────────────────────────
 
+// ─── Helper: flecha de tendencia ─────────────────────────────────────────────
+function Trend({ current, previous, higherIsBetter = true, suffix = '' }: {
+  current: number
+  previous: number | null | undefined
+  higherIsBetter?: boolean
+  suffix?: string
+}) {
+  if (!previous || previous === 0) return null
+  const diff = current - previous
+  const pct = Math.abs((diff / previous) * 100)
+  if (pct < 0.5) return null  // sin cambio relevante
+
+  const up = diff > 0
+  const positive = higherIsBetter ? up : !up
+  return (
+    <span className={`text-xs font-medium tabular-nums ${positive ? 'text-emerald-400' : 'text-red-400'}`}>
+      {up ? '↑' : '↓'} {pct.toFixed(1)}%{suffix}
+    </span>
+  )
+}
+
 function TabResumen({
   kpis,
+  previousKpis,
   cycle,
   config,
 }: {
   kpis: KPIs | null
+  previousKpis: KPIs | null
   cycle: (AnalysisCycle & { uploaded_files: UploadedFile[]; reports: Report[] }) | null
   config: ClientConfig
 }) {
@@ -454,10 +502,13 @@ function TabResumen({
             </span>
             <span className="text-emerald-400 text-lg font-semibold mb-0.5">EUR/mes</span>
           </div>
-          <p className="text-slate-400 text-sm">
-            Proyección anual:{' '}
-            <span className="text-white font-semibold">{potencialAnual.toLocaleString('es-ES')} EUR</span>
-          </p>
+          <div className="flex items-center gap-3 mt-1">
+            <p className="text-slate-400 text-sm">
+              Proyección anual:{' '}
+              <span className="text-white font-semibold">{potencialAnual.toLocaleString('es-ES')} EUR</span>
+            </p>
+            <Trend current={potencialMensual} previous={previousKpis?.potencial_mensual} />
+          </div>
           {categoriaMayorPotencial && (
             <p className="text-slate-500 text-xs mt-1.5">
               Mayor oportunidad en: <span className="text-emerald-400">{categoriaMayorPotencial}</span>
@@ -477,10 +528,14 @@ function TabResumen({
           </>
         ) : (
           <>
-            <KPICard label="Oportunidades" value={totalOportunidades.toString()} sublabel="acciones identificadas" color="blue" />
-            <KPICard label="Facturación" value={`${(facturacion / 1000).toFixed(0)}K €`} sublabel="periodo analizado" color="amber" />
-            <KPICard label="Margen actual" value={`${margenPct.toFixed(1)}%`} sublabel="sobre facturación" color="slate" />
-            <KPICard label="Clientes activos" value={clientesActivos.toString()} sublabel={topCategoria ? `top: ${topCategoria}` : 'en cartera'} color="slate" />
+            <KPICard label="Oportunidades" value={totalOportunidades.toString()} sublabel="acciones identificadas" color="blue"
+              trend={<Trend current={totalOportunidades} previous={previousKpis?.total_oportunidades} />} />
+            <KPICard label="Facturación" value={`${(facturacion / 1000).toFixed(0)}K €`} sublabel="periodo analizado" color="amber"
+              trend={<Trend current={facturacion} previous={previousKpis?.facturacion_total} />} />
+            <KPICard label="Margen actual" value={`${margenPct.toFixed(1)}%`} sublabel="sobre facturación" color="slate"
+              trend={<Trend current={margenPct} previous={previousKpis?.margen_porcentaje} />} />
+            <KPICard label="Clientes activos" value={clientesActivos.toString()} sublabel={topCategoria ? `top: ${topCategoria}` : 'en cartera'} color="slate"
+              trend={<Trend current={clientesActivos} previous={previousKpis?.clientes_activos} />} />
           </>
         )}
       </div>
@@ -1021,16 +1076,19 @@ function OportunidadesBars({
 }
 
 function KPICard({
-  label, value, sublabel, color,
+  label, value, sublabel, color, trend,
 }: {
-  label: string; value: string; sublabel: string; color: 'blue' | 'amber' | 'emerald' | 'slate'
+  label: string; value: string; sublabel: string; color: 'blue' | 'amber' | 'emerald' | 'slate'; trend?: React.ReactNode
 }) {
   const valueColor = color === 'blue' ? 'text-blue-400' : color === 'amber' ? 'text-amber-400' : color === 'emerald' ? 'text-emerald-400' : 'text-slate-300'
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
       <p className="text-slate-400 text-xs mb-2">{label}</p>
       <p className={`text-2xl font-bold tabular-nums ${valueColor}`}>{value}</p>
-      <p className="text-slate-500 text-xs mt-1 truncate">{sublabel}</p>
+      <div className="flex items-center justify-between mt-1 gap-1">
+        <p className="text-slate-500 text-xs truncate">{sublabel}</p>
+        {trend}
+      </div>
     </div>
   )
 }
