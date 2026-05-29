@@ -1,3 +1,4 @@
+import { after } from 'next/server'
 import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { rateLimit, getClientIp } from '@/lib/rate-limit'
@@ -52,17 +53,25 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Configuración del servidor incompleta' }, { status: 500 })
   }
 
-  // Fire-and-forget: no esperamos a que termine para responder al cliente
-  // El dashboard se actualizará con el nuevo estado mediante router.refresh()
-  fetch(edgeFunctionUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${serviceKey}`,
-    },
-    body: JSON.stringify({ file_id, cycle_id, client_id, file_path, file_name }),
-  }).catch(err => {
-    console.error('[API /process-csv] Error llamando Edge Function:', err)
+  // Usamos after() de Next.js para garantizar que el fetch al Edge Function
+  // se complete aunque la respuesta HTTP ya se haya enviado al cliente.
+  // Esto evita que Vercel cancele la llamada antes de que llegue.
+  after(async () => {
+    try {
+      const res = await fetch(edgeFunctionUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${serviceKey}`,
+        },
+        body: JSON.stringify({ file_id, cycle_id, client_id, file_path, file_name }),
+      })
+      if (!res.ok) {
+        console.error('[API /process-csv] Edge Function respondió con error:', res.status, await res.text())
+      }
+    } catch (err) {
+      console.error('[API /process-csv] Error llamando Edge Function:', err)
+    }
   })
 
   return NextResponse.json({ queued: true })
