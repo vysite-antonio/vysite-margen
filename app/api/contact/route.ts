@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/server'
 import { rateLimit, getClientIp } from '@/lib/rate-limit'
 
 /**
@@ -27,7 +27,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Nombre y email son obligatorios' }, { status: 400 })
     }
 
-    const supabase = await createClient()
+    // Usamos service client: contact_leads tiene RLS denegando acceso anónimo,
+    // y este endpoint es público (sin sesión de usuario). El rate limiting ya protege
+    // contra abuso. El service role bypassa RLS de forma controlada.
+    const supabase = createServiceClient()
 
     // Persistir lead en base de datos
     await supabase.from('contact_leads').insert({

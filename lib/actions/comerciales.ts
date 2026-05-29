@@ -1,18 +1,22 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { captureError } from '@/lib/monitoring.server'
 
 // ─── Helper: verificar admin ─────────────────────────────────────────────────
+// Devuelve dos clientes:
+//   - supabase: cliente de usuario (anon key + sesión cookie) para operaciones RLS
+//   - adminClient: service role para llamadas a auth.admin.* que requieren privilegios elevados
 
 async function requireAdmin() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { supabase, user: null, error: 'No autenticado' }
+  if (!user) return { supabase, adminClient: null, user: null, error: 'No autenticado' }
   const { data: roleData } = await supabase
     .from('user_roles').select('role').eq('user_id', user.id).single()
-  if (roleData?.role !== 'admin') return { supabase, user, error: 'Sin permisos' }
-  return { supabase, user, error: null }
+  if (roleData?.role !== 'admin') return { supabase, adminClient: null, user, error: 'Sin permisos' }
+  const adminClient = createServiceClient()
+  return { supabase, adminClient, user, error: null }
 }
 
 // ─── Crear cuenta de comercial ────────────────────────────────────────────────
@@ -22,13 +26,10 @@ export async function createComercialAccount(
   password: string,
   displayName: string
 ): Promise<{ error: string | null; userId?: string }> {
-  const { supabase, error: authError } = await requireAdmin()
-  if (authError) return { error: authError }
+  const { supabase, adminClient, error: authError } = await requireAdmin()
+  if (authError || !adminClient) return { error: authError ?? 'Sin permisos' }
 
-  // Crear usuario en Auth (usando Admin API via service role)
-  // Nota: createBrowserClient no tiene acceso a Admin API — usamos signUp
-  // y luego asignamos rol. En producción usar supabase.auth.admin.createUser con service role.
-  const { data: signUpData, error: signUpError } = await supabase.auth.admin.createUser({
+  const { data: signUpData, error: signUpError } = await adminClient.auth.admin.createUser({
     email,
     password,
     email_confirm: true,
@@ -66,10 +67,10 @@ export async function updateComercialDisplayName(
   userId: string,
   displayName: string
 ): Promise<{ error: string | null }> {
-  const { supabase, error: authError } = await requireAdmin()
-  if (authError) return { error: authError }
+  const { adminClient, error: authError } = await requireAdmin()
+  if (authError || !adminClient) return { error: authError ?? 'Sin permisos' }
 
-  const { error } = await supabase.auth.admin.updateUserById(userId, {
+  const { error } = await adminClient.auth.admin.updateUserById(userId, {
     user_metadata: { display_name: displayName },
   })
 
@@ -121,8 +122,8 @@ export async function listComercialesWithClients(): Promise<{
     client_count: number
   }>
 }> {
-  const { supabase, error: authError } = await requireAdmin()
-  if (authError) return { error: authError }
+  const { supabase, adminClient, error: authError } = await requireAdmin()
+  if (authError || !adminClient) return { error: authError ?? 'Sin permisos' }
 
   // Obtener users con rol comercial
   const { data: roles } = await supabase
@@ -134,10 +135,10 @@ export async function listComercialesWithClients(): Promise<{
 
   const userIds = roles.map(r => r.user_id)
 
-  // Obtener datos de usuario via admin API
+  // Obtener datos de usuario via admin API (requiere service role)
   const users = await Promise.all(
     userIds.map(async (uid) => {
-      const { data } = await supabase.auth.admin.getUserById(uid)
+      const { data } = await adminClient.auth.admin.getUserById(uid)
       return data?.user
     })
   )
@@ -171,7 +172,9 @@ export async function getComercialsByClient(clientId: string): Promise<{
   comerciales: Array<{ id: string; name: string; email: string }>
 }> {
   try {
-    const supabase = await createClient()
+    // Solo admins pueden ver los comerciales asignados a un cliente
+    const { supabase, adminClient, error: authError } = await requireAdmin()
+    if (authError || !adminClient) return { comerciales: [] }
 
     // Obtener comerciales asignados a este cliente
     const { data: assignments } = await supabase
@@ -183,10 +186,10 @@ export async function getComercialsByClient(clientId: string): Promise<{
 
     const userIds = assignments.map(a => a.comercial_user_id)
 
-    // Obtener datos de usuario via admin API
+    // Obtener datos de usuario via admin API (requiere service role)
     const users = await Promise.all(
       userIds.map(async (uid) => {
-        const { data } = await supabase.auth.admin.getUserById(uid)
+        const { data } = await adminClient.auth.admin.getUserById(uid)
         return data?.user
       })
     )

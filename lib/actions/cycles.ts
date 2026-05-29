@@ -1,7 +1,45 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { captureError } from '@/lib/monitoring.server'
+import type { CycleStatus } from '@/types'
+
+// ─── updateCycleStatus: actualizar estado de ciclo (solo admin) ───────────────
+
+export async function updateCycleStatus(
+  cycleId: string,
+  newStatus: CycleStatus,
+  oldStatus: CycleStatus
+): Promise<{ error: string | null }> {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'No autenticado' }
+
+    const { data: roleData } = await supabase
+      .from('user_roles').select('role').eq('user_id', user.id).single()
+    if (roleData?.role !== 'admin') return { error: 'Sin permisos' }
+
+    const serviceClient = createServiceClient()
+
+    const { error } = await serviceClient
+      .from('analysis_cycles')
+      .update({ status: newStatus })
+      .eq('id', cycleId)
+    if (error) throw error
+
+    await serviceClient.from('system_logs').insert({
+      action:  'ciclo_actualizado',
+      user_id: user.id,
+      details: { cycle_id: cycleId, old_status: oldStatus, new_status: newStatus },
+    })
+
+    return { error: null }
+  } catch (err) {
+    await captureError(err, { module: 'cycles/updateStatus' })
+    return { error: 'Error al actualizar el estado del ciclo' }
+  }
+}
 
 // ─── Cálculo automático de período ───────────────────────────────────────────
 

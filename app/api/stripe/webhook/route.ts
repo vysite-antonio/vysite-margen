@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
-import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/server'
 import { captureError } from '@/lib/monitoring.server'
 
 const WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET ?? ''
@@ -24,7 +24,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Firma inválida' }, { status: 400 })
   }
 
-  const supabase = await createClient()
+  // Usamos service client: el webhook no tiene sesión de usuario y RLS bloquearía
+  // todas las operaciones con el anon key. Service role bypassa RLS de forma segura
+  // porque la autenticación ya fue verificada por Stripe (constructEvent + firma).
+  const supabase = createServiceClient()
 
   try {
     switch (event.type) {

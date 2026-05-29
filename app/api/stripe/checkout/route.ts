@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { stripe, STRIPE_PRICES } from '@/lib/stripe'
 import { captureError } from '@/lib/monitoring.server'
+import { rateLimit, getClientIp } from '@/lib/rate-limit'
 
 /**
  * POST /api/stripe/checkout
@@ -9,6 +10,16 @@ import { captureError } from '@/lib/monitoring.server'
  * Body: { plan: 'crecimiento' | 'estrategico' }
  */
 export async function POST(req: NextRequest) {
+  // Rate limit: 10 intentos de checkout por IP cada 10 minutos
+  const ip = getClientIp(req)
+  const rl = rateLimit(ip, 'stripe-checkout', { limit: 10, windowSec: 600 })
+  if (!rl.allowed) {
+    return NextResponse.json({ error: 'Demasiadas solicitudes' }, {
+      status: 429,
+      headers: { 'Retry-After': String(Math.ceil((rl.resetAt - Date.now()) / 1000)) },
+    })
+  }
+
   try {
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()

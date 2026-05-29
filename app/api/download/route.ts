@@ -1,7 +1,18 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse, type NextRequest } from 'next/server'
+import { rateLimit, getClientIp } from '@/lib/rate-limit'
 
 export async function GET(request: NextRequest) {
+  // Rate limit: 60 descargas por IP cada 60 segundos
+  const ip = getClientIp(request)
+  const rl = rateLimit(ip, 'download', { limit: 60, windowSec: 60 })
+  if (!rl.allowed) {
+    return NextResponse.json({ error: 'Demasiadas solicitudes' }, {
+      status: 429,
+      headers: { 'Retry-After': String(Math.ceil((rl.resetAt - Date.now()) / 1000)) },
+    })
+  }
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })

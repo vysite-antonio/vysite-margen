@@ -1,8 +1,19 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse, type NextRequest } from 'next/server'
+import { rateLimit, getClientIp } from '@/lib/rate-limit'
 
 export async function POST(request: NextRequest) {
+  // Rate limit: 20 creaciones de cliente por IP cada 10 minutos
+  const ip = getClientIp(request)
+  const rl = rateLimit(ip, 'admin-clients', { limit: 20, windowSec: 600 })
+  if (!rl.allowed) {
+    return NextResponse.json({ error: 'Demasiadas solicitudes' }, {
+      status: 429,
+      headers: { 'Retry-After': String(Math.ceil((rl.resetAt - Date.now()) / 1000)) },
+    })
+  }
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
@@ -16,6 +27,10 @@ export async function POST(request: NextRequest) {
 
   if (!company_name || !contact_name || !contact_email || !password) {
     return NextResponse.json({ error: 'Faltan campos obligatorios' }, { status: 400 })
+  }
+
+  if (typeof password !== 'string' || password.length < 8) {
+    return NextResponse.json({ error: 'La contraseña debe tener al menos 8 caracteres' }, { status: 400 })
   }
 
   const serviceClient = createServiceClient()

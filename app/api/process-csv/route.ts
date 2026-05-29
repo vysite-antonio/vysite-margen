@@ -1,7 +1,18 @@
-import { NextResponse } from 'next/server'
+import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { rateLimit, getClientIp } from '@/lib/rate-limit'
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
+  // Rate limit: 10 procesamientos CSV por IP cada 5 minutos
+  const ip = getClientIp(req)
+  const rl = rateLimit(ip, 'process-csv', { limit: 10, windowSec: 300 })
+  if (!rl.allowed) {
+    return NextResponse.json({ error: 'Demasiadas solicitudes. Espera antes de procesar otro CSV.' }, {
+      status: 429,
+      headers: { 'Retry-After': String(Math.ceil((rl.resetAt - Date.now()) / 1000)) },
+    })
+  }
+
   const supabase = await createClient()
 
   // Verificar que el usuario está autenticado

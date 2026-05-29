@@ -26,6 +26,11 @@ export async function proxy(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
   const { pathname } = request.nextUrl
+
+  // Las rutas /api/* gestionan su propia autenticación — nunca redirigir a /login
+  // (los webhooks de Stripe, contact form, etc. no tienen sesión de usuario)
+  if (pathname.startsWith('/api/')) return response
+
   const isPublicRoute = ['/', '/login', '/pricing'].includes(pathname) || pathname.startsWith('/pricing')
 
   if (!user && !isPublicRoute) {

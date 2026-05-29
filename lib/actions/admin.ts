@@ -1,17 +1,20 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 
 // ─── Helper: verificar admin ─────────────────────────────────────────────────
+// Devuelve supabase (anon, para leer sesión/roles) y serviceClient (service_role,
+// para escrituras que no deben depender de RLS basado en JWT claims).
 
 async function requireAdmin() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { supabase, user: null, error: 'No autenticado' }
+  if (!user) return { supabase, serviceClient: null, user: null, error: 'No autenticado' }
   const { data: roleData } = await supabase
     .from('user_roles').select('role').eq('user_id', user.id).single()
-  if (roleData?.role !== 'admin') return { supabase, user, error: 'Sin permisos' }
-  return { supabase, user, error: null }
+  if (roleData?.role !== 'admin') return { supabase, serviceClient: null, user, error: 'Sin permisos' }
+  const serviceClient = createServiceClient()
+  return { supabase, serviceClient, user, error: null }
 }
 
 // ─── Configuración de cliente ─────────────────────────────────────────────────
@@ -26,8 +29,8 @@ export async function updateClientConfig(
   clientId: string,
   payload: UpdateClientConfigPayload
 ): Promise<{ error: string | null }> {
-  const { supabase, error: authError } = await requireAdmin()
-  if (authError) return { error: authError }
+  const { supabase, serviceClient, error: authError } = await requireAdmin()
+  if (authError || !serviceClient) return { error: authError ?? 'Sin permisos' }
 
   const { data: current, error: fetchError } = await supabase
     .from('clients').select('config').eq('id', clientId).single()
@@ -47,7 +50,7 @@ export async function updateClientConfig(
 
   if (Object.keys(updates).length === 0) return { error: null }
 
-  const { error: updateError } = await supabase
+  const { error: updateError } = await serviceClient
     .from('clients').update(updates).eq('id', clientId)
 
   if (updateError) return { error: updateError.message }
@@ -78,12 +81,12 @@ export async function upsertErpProfile(
   id: string | null,
   payload: ErpProfilePayload
 ): Promise<{ error: string | null; id?: string }> {
-  const { supabase, error: authError } = await requireAdmin()
-  if (authError) return { error: authError }
+  const { serviceClient, error: authError } = await requireAdmin()
+  if (authError || !serviceClient) return { error: authError ?? 'Sin permisos' }
 
   if (id) {
     // Update existente
-    const { error } = await supabase
+    const { error } = await serviceClient
       .from('erp_profiles')
       .update({
         name: payload.name,
@@ -96,7 +99,7 @@ export async function upsertErpProfile(
     return { error: null, id }
   } else {
     // Nuevo perfil
-    const { data, error } = await supabase
+    const { data, error } = await serviceClient
       .from('erp_profiles')
       .insert({
         name: payload.name,
@@ -112,13 +115,13 @@ export async function upsertErpProfile(
 }
 
 export async function deleteErpProfile(id: string): Promise<{ error: string | null }> {
-  const { supabase, error: authError } = await requireAdmin()
-  if (authError) return { error: authError }
+  const { serviceClient, error: authError } = await requireAdmin()
+  if (authError || !serviceClient) return { error: authError ?? 'Sin permisos' }
 
   // Desasignar clientes que usaban este perfil
-  await supabase.from('clients').update({ erp_profile_id: null }).eq('erp_profile_id', id)
+  await serviceClient.from('clients').update({ erp_profile_id: null }).eq('erp_profile_id', id)
 
-  const { error } = await supabase.from('erp_profiles').delete().eq('id', id)
+  const { error } = await serviceClient.from('erp_profiles').delete().eq('id', id)
   if (error) return { error: error.message }
   return { error: null }
 }

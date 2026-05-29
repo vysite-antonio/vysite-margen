@@ -93,6 +93,14 @@ export async function updateObjective(
 ): Promise<{ error: string | null }> {
   try {
     const supabase = await createClient()
+
+    // Verificar que el usuario es admin antes de permitir modificaciones
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'No autenticado' }
+    const { data: roleData } = await supabase
+      .from('user_roles').select('role').eq('user_id', user.id).single()
+    if (roleData?.role !== 'admin') return { error: 'Sin permisos' }
+
     const { error } = await supabase
       .from('objectives')
       .update(input)
@@ -109,6 +117,14 @@ export async function updateObjective(
 export async function deleteObjective(objectiveId: string): Promise<{ error: string | null }> {
   try {
     const supabase = await createClient()
+
+    // Verificar que el usuario es admin antes de permitir desactivar objetivos
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'No autenticado' }
+    const { data: roleData } = await supabase
+      .from('user_roles').select('role').eq('user_id', user.id).single()
+    if (roleData?.role !== 'admin') return { error: 'Sin permisos' }
+
     const { error } = await supabase
       .from('objectives')
       .update({ active: false })

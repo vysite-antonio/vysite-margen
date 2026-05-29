@@ -29,7 +29,10 @@ export default function LoginPage() {
     if (data.user) {
       const { data: roleData } = await supabase
         .from('user_roles').select('role').eq('user_id', data.user.id).single()
-      const destination = roleData?.role === 'admin' ? '/admin' : '/dashboard'
+      const role = roleData?.role
+      const destination =
+        role === 'admin'     ? '/admin'     :
+        role === 'comercial' ? '/comercial' : '/dashboard'
       router.push(destination)
       router.refresh()
     }
