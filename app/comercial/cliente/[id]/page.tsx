@@ -45,11 +45,41 @@ export default async function ComercialClientDetailPage({
     .select('*, kpis(*)')
     .eq('client_id', clientId)
     .order('created_at', { ascending: false })
-    .limit(1)
+    .limit(6)
 
-  const latestCycle = cycles?.[0] ?? null
-  const kpis = latestCycle?.kpis?.[0] ?? null
-  const ext = kpis?.extended_data as KPIsExtendedData | undefined
+  const latestCycle  = cycles?.[0] ?? null
+  const kpis         = latestCycle?.kpis?.[0] ?? null
+  const ext          = kpis?.extended_data as KPIsExtendedData | undefined
+  const historyCycles = (cycles ?? []).slice(1) // ciclos anteriores para histórico
+
+  // Ranking: posición de este cliente vs resto de clientes del comercial por potencial
+  const { data: allAssignments } = await supabase
+    .from('comercial_clients')
+    .select('client_id')
+    .eq('comercial_user_id', user.id)
+
+  let rankPosition = 0
+  let rankTotal = 0
+  if (allAssignments && allAssignments.length > 1 && kpis) {
+    const clientIds = allAssignments.map(a => a.client_id)
+    const { data: otherKpis } = await supabase
+      .from('kpis')
+      .select('client_id, potencial_mensual')
+      .in('client_id', clientIds)
+      .order('created_at', { ascending: false })
+
+    // Agrupar: coger el kpi más reciente por cliente
+    const latestByClient = new Map<string, number>()
+    for (const k of (otherKpis ?? [])) {
+      if (!latestByClient.has(k.client_id)) {
+        latestByClient.set(k.client_id, k.potencial_mensual ?? 0)
+      }
+    }
+    const sorted = [...latestByClient.values()].sort((a, b) => b - a)
+    const myPotencial = kpis.potencial_mensual ?? 0
+    rankPosition = sorted.findIndex(v => v <= myPotencial) + 1
+    rankTotal = latestByClient.size
+  }
 
   return (
     <div className="min-h-screen bg-slate-950">
@@ -91,7 +121,20 @@ export default async function ComercialClientDetailPage({
           <>
             {/* KPIs Hero */}
             <div className="bg-gradient-to-br from-emerald-950 via-slate-900 to-slate-900 border border-emerald-900/40 rounded-2xl p-6">
-              <p className="text-emerald-400 text-xs font-semibold uppercase tracking-widest mb-2">Potencial recuperable</p>
+              <div className="flex items-start justify-between mb-2">
+                <p className="text-emerald-400 text-xs font-semibold uppercase tracking-widest">Potencial recuperable</p>
+                {rankPosition > 0 && (
+                  <span className={`text-xs px-2.5 py-1 rounded-full font-medium border ${
+                    rankPosition === 1
+                      ? 'bg-amber-950/50 border-amber-700/50 text-amber-400'
+                      : rankPosition <= Math.ceil(rankTotal / 3)
+                      ? 'bg-emerald-950/50 border-emerald-700/50 text-emerald-400'
+                      : 'bg-slate-800 border-slate-700 text-slate-400'
+                  }`}>
+                    #{rankPosition} de {rankTotal} clientes
+                  </span>
+                )}
+              </div>
               <div className="flex items-end gap-3 mb-1.5">
                 <span className="text-5xl font-bold text-white tabular-nums leading-none">
                   {Number(kpis.potencial_mensual).toLocaleString('es-ES')}
@@ -128,6 +171,44 @@ export default async function ComercialClientDetailPage({
             )}
             {ext?.tendencia_mensual && ext.tendencia_mensual.length > 1 && (
               <TendenciaChart data={ext.tendencia_mensual} label="Evolución mensual de facturación" />
+            )}
+
+            {/* Histórico de ciclos anteriores */}
+            {historyCycles.length > 0 && (
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+                <h3 className="text-white font-semibold text-sm mb-4">Histórico de ciclos</h3>
+                <div className="space-y-2">
+                  {historyCycles.map((cycle) => {
+                    const prevKpi = cycle.kpis?.[0]
+                    return (
+                      <div key={cycle.id} className="flex items-center justify-between py-2.5 border-b border-slate-800 last:border-0">
+                        <div>
+                          <p className="text-slate-300 text-xs font-medium">
+                            {new Date(cycle.period_start).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })}
+                            {' — '}
+                            {new Date(cycle.period_end).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })}
+                          </p>
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full border ${CYCLE_STATUS_COLORS[cycle.status as CycleStatus]}`}>
+                            {CYCLE_STATUS_LABELS[cycle.status as CycleStatus]}
+                          </span>
+                        </div>
+                        {prevKpi ? (
+                          <div className="text-right">
+                            <p className="text-emerald-400 text-xs font-medium tabular-nums">
+                              {Number(prevKpi.potencial_mensual).toLocaleString('es-ES')} €/mes
+                            </p>
+                            <p className="text-slate-500 text-[10px]">
+                              Margen: {Number(prevKpi.margen_porcentaje).toFixed(1)}%
+                            </p>
+                          </div>
+                        ) : (
+                          <p className="text-slate-600 text-xs">Sin KPIs</p>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
             )}
           </>
         )}

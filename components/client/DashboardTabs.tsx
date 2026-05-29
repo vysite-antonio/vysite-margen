@@ -28,6 +28,8 @@ import IncentiveConfig from '@/components/client/IncentiveConfig'
 import ObjectivesProgress from '@/components/client/ObjectivesProgress'
 import OnboardingWizard from '@/components/client/OnboardingWizard'
 import AlertsBanner from '@/components/client/AlertsBanner'
+import ExportKPIsButton from '@/components/client/ExportKPIsButton'
+import Tooltip from '@/components/ui/Tooltip'
 import type { Objective } from '@/lib/utils/objectives'
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
@@ -143,6 +145,14 @@ export default function DashboardTabs({
               )}
             </div>
             <div className="flex items-center gap-2">
+              {kpis && (
+                <ExportKPIsButton
+                  kpis={kpis}
+                  companyName={companyName}
+                  periodStart={cycle?.period_start}
+                  periodEnd={cycle?.period_end}
+                />
+              )}
               <a href="/billing"
                 className="text-slate-400 hover:text-slate-200 text-xs border border-slate-700 hover:border-slate-600 px-3 py-1.5 rounded-lg transition-colors hidden sm:block">
                 💳 Plan
@@ -528,11 +538,15 @@ function TabResumen({
           </>
         ) : (
           <>
-            <KPICard label="Oportunidades" value={totalOportunidades.toString()} sublabel="acciones identificadas" color="blue"
+            <KPICard
+              label={<Tooltip text="Líneas de venta con margen mejorable detectadas en el análisis">Oportunidades <span className="text-slate-600 cursor-help">ⓘ</span></Tooltip>}
+              value={totalOportunidades.toString()} sublabel="acciones identificadas" color="blue"
               trend={<Trend current={totalOportunidades} previous={previousKpis?.total_oportunidades} />} />
             <KPICard label="Facturación" value={`${(facturacion / 1000).toFixed(0)}K €`} sublabel="periodo analizado" color="amber"
               trend={<Trend current={facturacion} previous={previousKpis?.facturacion_total} />} />
-            <KPICard label="Margen actual" value={`${margenPct.toFixed(1)}%`} sublabel="sobre facturación" color="slate"
+            <KPICard
+              label={<Tooltip text="Margen bruto medio de todas las líneas del período analizado">Margen actual <span className="text-slate-600 cursor-help">ⓘ</span></Tooltip>}
+              value={`${margenPct.toFixed(1)}%`} sublabel="sobre facturación" color="slate"
               trend={<Trend current={margenPct} previous={previousKpis?.margen_porcentaje} />} />
             <KPICard label="Clientes activos" value={clientesActivos.toString()} sublabel={topCategoria ? `top: ${topCategoria}` : 'en cartera'} color="slate"
               trend={<Trend current={clientesActivos} previous={previousKpis?.clientes_activos} />} />
@@ -1078,7 +1092,7 @@ function OportunidadesBars({
 function KPICard({
   label, value, sublabel, color, trend,
 }: {
-  label: string; value: string; sublabel: string; color: 'blue' | 'amber' | 'emerald' | 'slate'; trend?: React.ReactNode
+  label: React.ReactNode; value: string; sublabel: string; color: 'blue' | 'amber' | 'emerald' | 'slate'; trend?: React.ReactNode
 }) {
   const valueColor = color === 'blue' ? 'text-blue-400' : color === 'amber' ? 'text-amber-400' : color === 'emerald' ? 'text-emerald-400' : 'text-slate-300'
   return (

@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import ObjectiveWizard from '@/components/admin/ObjectiveWizard'
+import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { deleteObjective } from '@/lib/actions/objectives'
 import { calcObjectiveProgress } from '@/lib/utils/objectives'
 import type { Objective, ObjectiveProgress } from '@/lib/utils/objectives'
@@ -49,8 +50,9 @@ export default function TeamObjectivesView({ clientId, objectives, comerciales, 
   const [isPending, startTransition] = useTransition()
   const [showWizard,  setShowWizard]  = useState(false)
   const [editingObj,  setEditingObj]  = useState<Objective | null>(null)
-  const [detailCom,   setDetailCom]   = useState<string | null>(null)   // id del comercial seleccionado
+  const [detailCom,   setDetailCom]   = useState<string | null>(null)
   const [tab, setTab] = useState<'active' | 'all'>('active')
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
 
   const today = new Date().toISOString().split('T')[0]
 
@@ -71,6 +73,13 @@ export default function TeamObjectivesView({ clientId, objectives, comerciales, 
   }
 
   function handleDelete(id: string) {
+    setConfirmDeleteId(id)
+  }
+
+  function confirmDelete() {
+    if (!confirmDeleteId) return
+    const id = confirmDeleteId
+    setConfirmDeleteId(null)
     startTransition(async () => {
       await deleteObjective(id)
       router.refresh()
@@ -137,6 +146,18 @@ export default function TeamObjectivesView({ clientId, objectives, comerciales, 
 
   return (
     <div className="space-y-5">
+
+      {/* Modal de confirmación para eliminar objetivo */}
+      <ConfirmDialog
+        open={!!confirmDeleteId}
+        title="¿Eliminar objetivo?"
+        message="El objetivo se desactivará y dejará de aparecer en el panel. Esta acción no se puede deshacer."
+        confirmLabel="Sí, eliminar"
+        cancelLabel="Cancelar"
+        danger
+        onConfirm={confirmDelete}
+        onCancel={() => setConfirmDeleteId(null)}
+      />
 
       {/* Wizard modal */}
       {showWizard && (

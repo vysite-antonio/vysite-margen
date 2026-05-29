@@ -173,9 +173,26 @@ export default async function AdminDashboard() {
 
           {/* Lista de clientes */}
           <div className="lg:col-span-2">
-            <h2 className="text-white font-semibold mb-4 text-sm">Estado de clientes</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-white font-semibold text-sm">Estado de clientes</h2>
+              {/* Clientes que necesitan acción */}
+              {clients.some(c => c.analysis_cycles.some(cy => cy.status === 'csv_recibido')) && (
+                <span className="text-xs bg-amber-950/40 border border-amber-800/50 text-amber-400 px-2.5 py-1 rounded-full">
+                  ⚡ {clients.filter(c => c.analysis_cycles.some(cy => cy.status === 'csv_recibido')).length} con acción pendiente
+                </span>
+              )}
+            </div>
             <div className="space-y-3">
-              {clients.map((client) => {
+              {[...clients].sort((a, b) => {
+                // Primero: csv_recibido (acción requerida)
+                const aAction = a.analysis_cycles.some(cy => cy.status === 'csv_recibido') ? 1 : 0
+                const bAction = b.analysis_cycles.some(cy => cy.status === 'csv_recibido') ? 1 : 0
+                if (bAction !== aAction) return bAction - aAction
+                // Luego: mayor potencial
+                const aPot = [...a.analysis_cycles].sort((x, y) => new Date(y.updated_at).getTime() - new Date(x.updated_at).getTime())[0]?.kpis[0]?.potencial_mensual ?? 0
+                const bPot = [...b.analysis_cycles].sort((x, y) => new Date(y.updated_at).getTime() - new Date(x.updated_at).getTime())[0]?.kpis[0]?.potencial_mensual ?? 0
+                return bPot - aPot
+              }).map((client) => {
                 const latestCycle = [...client.analysis_cycles].sort(
                   (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
                 )[0]
